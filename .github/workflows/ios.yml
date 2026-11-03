@@ -1,0 +1,33 @@
+name: iOS build and tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  ios:
+    runs-on: macos-15
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Select available iPhone simulator
+        run: |
+          xcodebuild -version
+          python3 - <<'PY'
+          import json, os, subprocess
+          devices = json.loads(subprocess.check_output(['xcrun', 'simctl', 'list', 'devices', 'available', '-j']))['devices']
+          iphones = [d for runtime, values in devices.items() if 'iOS' in runtime for d in values if d['name'].startswith('iPhone')]
+          if not iphones:
+              raise SystemExit('No available iPhone simulator')
+          with open(os.environ['GITHUB_ENV'], 'a') as f:
+              f.write('SIMULATOR_ID=' + iphones[0]['udid'] + '\n')
+          PY
+      - name: Build iOS simulator application
+        run: xcodebuild build -project ArhitektOffice.xcodeproj -scheme ArhitektOffice -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
+      - name: Run XCTest
+        run: xcodebuild test -project ArhitektOffice.xcodeproj -scheme ArhitektOffice -destination "platform=iOS Simulator,id=$SIMULATOR_ID" -resultBundlePath TestResults.xcresult CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: XCTest-results
+          path: TestResults.xcresult
+          if-no-files-found: ignore
