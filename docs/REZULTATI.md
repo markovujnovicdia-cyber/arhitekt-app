@@ -39,3 +39,7 @@ AI dobiva samo korisnički pregledan kontekst i puni odabrani transkript; odgovo
 Snimanje koristi kontinuirani zaštićeni CAF master i dnevnik; nema pauziranja radi granica slanja. Pri prisilnom gašenju moguće je izgubiti još nezapisane buffere. Nečitljivi djelomični audio ne briše se. Cloud obrada radi u aktivnoj aplikaciji; prekid zahtjeva čuva već obrađene dijelove za retry.
 
 JSON ne uključuje audio bajtove. Paket .officebackup uključuje zvuk i nije dodatno šifriran. Različite datoteke istog puta odbijaju se, bez prepisivanja. Ne postoji jedna transakcija koja obuhvaća i SQLite i datotečni sustav pri prisilnom prekidu; instalirane datoteke mogu ostati kao oporavljive snimke i ponovni uvoz koristi identične datoteke.
+
+## Dodatak: jednostavno postavljanje
+
+Dodani su `render.yaml`, kratka uputa za Render te aplikacijska provjera veze bez slanja izvora. Lokalno su provjereni YAML sintaksa, Docker putanje, deklaracije tajni i health ruta. Backend ponovno prolazi svih28 testova, a Swift/Xcode statički validator svih36 datoteka. Renderov stvarni deployment i API ključ nisu provjereni jer korisnik još treba prijaviti svoj račun i unijeti vrijednosti. Renderova dokumentacijska domena nije dostupna iz ovog ograničenog cloud okruženja; Blueprint treba pregledati u Renderovu obrascu prije stvaranja servisa. Nije potvrđena provjera uživo protiv Renderove sheme.

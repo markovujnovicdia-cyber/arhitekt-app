@@ -2,6 +2,10 @@
 
 Node.js 24+, bez dodatnih npm paketa. API ključ ostaje na poslužitelju. iPhone koristi zaseban opoziv pristupni token spremljen u Keychainu i HTTPS URL vašeg poslužitelja. Ovo je posrednik za jednog korisnika/ured, a ne javni višekorisnički servis.
 
+## Jednostavno postavljanje bez vlastitog servera
+
+Koristite [Render Blueprint upute](../docs/JEDNOSTAVNO-POSTAVLJANJE.md). Korijenski `render.yaml` pokreće postojeći Dockerfile uz automatski HTTPS i generirani uređajski token. Deployment i stvarni ključ potvrđuju se u Renderovu sučelju.
+
 ## Pokretanje
 
 ```sh
@@ -115,7 +119,7 @@ Analiza i pitanja koriste `POST /v1/chat/completions` s `gpt-4.1-mini` i `respon
 - Pristupni token uspoređuje se hashiranjem i vremenski stalnom usporedbom. Jedan token znači jedan sigurnosni opseg; za više korisnika treba zasebna autentikacija, izolacija i revizija ovlasti.
 - Provjera formata, ograničenja JSON-a, nepoznatih izvora i kalendarskih datuma vrši se prije vraćanja prijedloga.
 - Maksimalno 2 istodobna zahtjeva i 30 zahtjeva/minuti po procesu. To je zaštita procesa, ne raspodijeljeno ograničavanje između više replika. iPhone treba obrađivati audio dijelove redom. `429` sadrži `Retry-After: 60`.
-- Rok OpenAI poziva je zadano 120 s po dijelu, podesiv 1–300 s. Prijenos ulaznog HTTP zahtjeva ima rok 30 s. Povećajte ga u kodu/reverse proxyju samo nakon procjene sporih veza.
+- Rok OpenAI poziva je zadano 120 s po dijelu, podesiv 1–300 s. Prijenos ulaznog HTTP zahtjeva ima rok 120 s. Povećajte ga u kodu/reverse proxyju samo nakon procjene sporih veza.
 - Svaki neuspjeli poziv vraća samo sanitiziranu poruku; providerovi odgovori s pogreškom i tokeni ne vraćaju se klijentu. Bez automatskih poslužiteljskih retryja, da se ne skrivaju dodatni troškovi. Lokalna aplikacija može ponoviti obradu sa sačuvanim izvornikom.
 - Tekstovi su nepouzdani podaci. Sistemske upute zabranjuju promjenu pravila kroz tekst prijepisa; citati se dodatno provjeravaju. To smanjuje rizik prompt injectiona, ali ne zamjenjuje korisnikov pregled.
 - HTTPS certifikat, reverse proxy, siguran unos/rotacija ključeva i uređajskog tokena obvezna su konfiguracija administratora prije produkcijske uporabe.

@@ -19,6 +19,16 @@ final class CloudAIClient {
         session = URLSession(configuration: config, delegate: NoRedirectDelegate(), delegateQueue: nil)
     }
 
+    /// Authenticated preflight with no project/audio data and no provider call.
+    func checkConnection() async throws {
+        struct Payload: Encodable { let question: String; let context: [AIContextRecord] }
+        let response: AskResponse = try await sendJSON(path: "ask",
+            payload: Payload(question: "Provjera veze", context: []))
+        guard response.insufficientData, response.sourceIDs.isEmpty else {
+            throw AIError.invalidResponse("Poslužitelj ne odgovara očekivanom Arhitekt Office API ugovoru.")
+        }
+    }
+
     func transcribe(fileURL: URL) async throws -> String {
         let size = try fileURL.resourceValues(forKeys: [.fileSizeKey]).fileSize ?? 0
         guard size > 0 else { throw AIError.noAudio }

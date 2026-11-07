@@ -26,6 +26,10 @@ Ova verzija nadograđuje postojeće modele dodatnim poljima i odnosima. Stare bi
 
 Prekid pozivom pauzira mikrofon; nastavite ručno. Snimanje u pozadini i pri zaključanom ekranu koristi deklarirani audio background mode. Aplikacija **ne snima zvuk telefonskog poziva**. Nakon razgovora možete prepričati sadržaj. CAF čuva napisane audio okvire bez ovisnosti o završnom MP4 indeksu, ali gašenje uređaja ili prisilni prekid može izgubiti još nezapisane hardverske buffere. Djelomične datoteke ostaju sačuvane za oporavak; apsolutni gubitak nula uzoraka ne jamči se.
 
+## Jednostavno postavljanje
+
+Nemate server? Slijedite [kratke Render upute](docs/JEDNOSTAVNO-POSTAVLJANJE.md) ili otvorite [postavljanje na Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fmarkovujnovicdia-cyber%2Farhitekt-app). Predložak traži Free plan, automatski generira token uređaja i traži da OpenAI ključ unesete izravno u Render. Pregledajte plan prije potvrde.
+
 ## Cloud AI konfiguracija
 
 Snimanje, pauza, pohrana, pregled, ručne ispravke, lokalno pretraživanje i sigurnosne kopije rade bez interneta. **Napredna transkripcija, semantička analiza i odgovori zahtijevaju backend, internet i AI račun.** Modeli se ne izvršavaju na iPhoneu i nema obećanja offline AI-ja.

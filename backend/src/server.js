@@ -117,7 +117,7 @@ export function createProxyServer({ token, provider, requestsPerMinute = 30, max
       else send(response, 500, { error: { code: 'internal_error', message: 'Obrada nije uspjela. Lokalni podaci ostaju sačuvani.' } });
     } finally { if (holdsSlot) active -= 1; }
   });
-  server.requestTimeout = 30000;
+  server.requestTimeout = 120000;
   server.headersTimeout = 10000;
   server.keepAliveTimeout = 5000;
   return server;
