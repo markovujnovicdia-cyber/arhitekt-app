@@ -16,3 +16,19 @@ Ovo je kontrolni popis za izvršavanje, a ne tvrdnja da su provjere provedene.
 12. **Nevaljane kopije:** pokušajte učitati oštećen JSON, pogrešnu verziju, prazni naziv, nevaljan enum, ponovljeni UUID i >20 MB datoteku. Odbijanje ne smije izmijeniti postojeću bazu. Otkazivanje birača datoteke ne smije izgubiti podatke.
 
 Automatski testovi nad trajnim spremnikom koriste privremeni direktorij i ne diraju stvarnu bazu aplikacije. Speech dopuštenja, podrška za jezik i fizički mikrofon trebaju stvarni uređaj i ručno testiranje.
+
+## Dodatne provjere verzije 2.0
+
+- Prije nadogradnje sačuvajte bazu verzije1. Otvorite istu bazu u v2; postojeći projekti, odnosi, datumi i bilješke moraju ostati dostupni.
+- Snimite najmanje20 minuta, uključujući hrvatske nazive, osobe, rokove, pretpostavke i nekoliko projekata. Pauzirajte pa nastavite; preslušajte prije i poslije pauze. Zaključajte zaslon5min pa otključajte. Provjerite završni CAF i ukupno trajanje.
+- Snimajte offline, završite, zatvorite aplikaciju i ponovno je otvorite. Tek poslije mrežne dostupnosti i privole transkribirajte. Usporedite cijeli tekst s audio zapisom, posebice granice60s AAC dijelova. Ne očekujte vremenske oznake pojedine riječi u ovoj verziji.
+- Prekinite proces tijekom snimanja. Nakon otvaranja mora se pojaviti oporavljena snimka, uz upozorenje. Provjerite čitljivost parcijalnog CAF-a; ako nije čitljiv, datoteka se ne smije izbrisati. Hardverski gubitak zadnjih nezapisanih buffera nije moguće isključiti.
+- Provjerite poziv, Bluetooth odspajanje, odbijeno dopuštenje, nedostatak slobodnog prostora i otkazivanje pripreme. Snimanje se ne smije automatski nastaviti bez korisnikova znanja poslije prekida.
+- Simulirajte pogrešan backend token, HTTP429/500, nestanak interneta i timeout na srednjem dijelu. Uspješni dijelovi ostaju, izvorni master ne nestaje. Ponovni pokušaj nastavlja od neuspjelog dijela. Kod praznog prijepisa dijela aplikacija traži pregled/retry ili ručni transkript.
+- Ispravite transkript i spremite novu verziju. Stara verzija i svi citati na nju ostaju nepromijenjeni. Ponovite transkripciju; stare ispravke se ne prepisuju.
+- Prije analize uklonite neke projekte i kontekst iz pregleda slanja. Poslati smije samo označene zapise i cijeli odabrani transkript. Odbijanje privole ne radi mrežni zahtjev.
+- U AI nacrtu promijenite projekt, vrstu, izvjesnost, osobu i rok; odznačite stavku. Samo označene potvrđene stavke ulaze u memoriju. Ponovite istu potvrdu: nema jednakih zapisa ponovno. Pregledajte točan citat i izvornu verziju.
+- Iz novog diktata zabilježite promjenu odluke i povežite prethodnu odluku. Stari zapis ostaje u kronologiji. Upit o razvoju dogovora mora moći citirati oba izvora.
+- Postavite pitanja iz specifikacije. Pregledajte dohvaćene izvore prije slanja, provjerite datume i poveznice. Kod nepovezanog pitanja mora jasno reći da podaci nedostaju, bez dopunjavanja općim znanjem.
+- Izvezite `.officebackup`, prenesite u drugu testnu instalaciju i provjerite reprodukciju, sve verzije, memoriju i izvore. Ponovljeni uvoz ne prepisuje različitu audio datoteku. Pokušajte nevaljan paket, putanju `../`, simboličku vezu i sukob sadržaja; postojeće datoteke/baza ostaju sačuvane.
+- Obrišite samo zvuk. Tekstovi, povijest i memorija ostaju; transkripcija zvuka više se ne nudi kao dostupna. JSON kopija bez audio datoteka mora biti jasno označena.

@@ -31,23 +31,27 @@ struct SettingsView: View {
     var body: some View {
         NavigationStack {
             Form {
-                Section("Sigurnosna kopija") {
+                Section("AI i potpune kopije") {
+                    NavigationLink("Cloud AI poslužitelj") { CloudSettingsView() }
+                    NavigationLink("Kopija podataka i audio snimki") { PortableBackupView() }
+                }
+                Section("JSON podaci bez zvuka") {
                     Button("Izvezi podatke u JSON", systemImage: "square.and.arrow.up") { exportBackup() }
                         .frame(minHeight: 44)
                     Button("Uvezi podatke iz JSON-a", systemImage: "square.and.arrow.down") { importing = true }
                         .frame(minHeight: 44)
-                    Text("Izvoz obuhvaća sve projekte, zadatke, probleme, bilješke, izvorne diktate i povijest faza. Kopiju spremite na sigurno mjesto u aplikaciji Datoteke.")
+                    Text("JSON obuhvaća podatke i transkripte, ali ne i zvučne datoteke. Za prenosivu kopiju sa zvukom odaberite Kopija podataka i audio snimki.")
                         .font(.footnote).foregroundStyle(.secondary)
                     Text("Uvoz dodaje nove zapise i obnavlja zapise s istim identifikatorom iz kopije. Ostali zapisi se ne brišu. Prije uvoza izvezite trenutačne podatke. iCloud sinkronizacija još nije uključena.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Privatnost i pohrana") {
                     Label("Podaci se čuvaju lokalno na iPhoneu", systemImage: "iphone")
-                    Text("Rad s projektima i ručni unos dostupni su bez interneta. Diktiranje bez interneta ovisi o podršci hrvatskog jezika na uređaju. Ako je potrebno Appleovo mrežno prepoznavanje, aplikacija prije snimanja traži vaš pristanak.")
-                    Text("Aplikacija nema račune, pretplatu ni vanjski AI servis. Brisanje aplikacije uklanja lokalnu bazu; prethodno izvezite sigurnosnu kopiju.")
+                    Text("Dugo snimanje, pauza i lokalno čuvanje zvuka rade bez interneta. Cloud transkripcija, analiza i odgovori zahtijevaju konfiguriran backend, internet i zasebnu suglasnost prije slanja.")
+                    Text("API ključ AI pružatelja postoji samo na vašem poslužitelju. Token za pristup poslužitelju čuva se u privjesku ključeva uređaja. Brisanje aplikacije uklanja lokalne podatke; prethodno izvezite potpunu kopiju.")
                 }
                 Section("Arhitekt Office") {
-                    LabeledContent("Verzija", value: "1.0")
+                    LabeledContent("Verzija", value: "2.0")
                     Text("Osobni ured za arhitektonske projekte.")
                 }
             }

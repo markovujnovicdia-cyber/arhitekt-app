@@ -1,63 +1,80 @@
-# Arhitekt Office
+# Arhitekt Office 2.0
 
-Izvorna iPhone aplikacija za samostalni arhitektonski ured u Hrvatskoj. SwiftUI, SwiftData i Apple Speech; iOS 17 ili noviji. Bez računa, pretplate, poslužitelja i API ključeva.
+Izvorna iPhone aplikacija za hrvatski arhitektonski ured: dugo lokalno snimanje, potpuni transkripti s verzijama, trajna projektna memorija s dokazima i pitanja nad odabranim podacima. **SwiftUI + SwiftData, iOS 17+, Xcode 16+.** Bez API ključa ugrađenog u aplikaciju.
 
-## Otvaranje i instalacija
+## Instalacija na iPhone
 
-1. Na Macu instalirajte **Xcode 16 ili noviji** i iOS Simulator. Otvorite `ArhitektOffice.xcodeproj` (projekt je već generiran; nema paketa ni dodatnih instalacija).
-2. Odaberite shemu **ArhitektOffice** i iPhone simulator. Pokrenite **Product → Run** (`⌘R`).
-3. Za vlastiti iPhone povežite uređaj, omogućite Developer Mode i odaberite ga kao odredište. U **Signing & Capabilities** odaberite svoj Apple Development Team. Po potrebi promijenite Bundle Identifier `com.arhitektoffice.app` u jedinstvenu vrijednost. Xcode može zatražiti prijavu Apple računa i povjerenje uređaja.
-4. Pokrenite aplikaciju. Prvo dopuštenje za mikrofon i govor traži se tek kada uključite diktiranje. Osobni besplatni Apple račun podliježe Appleovim ograničenjima potpisivanja.
+1. Preuzmite projekt i na Macu otvorite **ArhitektOffice.xcodeproj**. Nema Swift Package ovisnosti ni generiranja potrebnog za otvaranje.
+2. Odaberite shemu **ArhitektOffice** i simulator ili vlastiti povezani iPhone.
+3. Za uređaj u Signing & Capabilities odaberite svoj Apple Development Team i po potrebi jedinstveni Bundle Identifier. Na iPhoneu omogućite Developer Mode i povjerenje uređaju.
+4. Pokrenite **Run** (`⌘R`). Mikrofon se traži tek pri prvom snimanju. Isprobajte najprije lokalni tijek bez cloud postavki.
 
-Sadržaj aplikacije je na hrvatskom, uz sistemske komponente koje slijede jezik iPhonea. Podržani su Dark Mode, dinamična veličina teksta i VoiceOver oznake osnovnih kontrola.
+Ova verzija nadograđuje postojeće modele dodatnim poljima i odnosima. Stare bilješke, projekti, zadaci i problemi ostaju u aplikaciji. Prije nadogradnje stvarne baze napravite sigurnosnu kopiju; automatska SwiftData migracija mora se provjeriti na Macu/iPhoneu prije produkcijske uporabe.
 
-## Što aplikacija radi
+## Radni tijek
 
-- Projekti: unos i uređivanje naziva, broja, investitora, lokacije, vrste građevine, datuma početka; pretraživanje i arhiva. Vidljivi su otvoreni zadaci i neriješeni problemi.
-- Četiri faze: Uvjeti, Idejni projekt, Glavni projekt i Završen. Svaka promjena ima zapis u povijesti; bilježi se posljednja aktivnost projekta.
-- Zadaci: naziv, opis, projekt, neobvezni rok, prioritet i otvoren/izvršen status; središnji pregled s filtrima.
-- Problemi: naziv, opis, projekt, datum, otvoren/riješen status i opis rješenja.
-- Bilješke: kronološki pregled, pretraživanje, ručni unos, uređivanje i brisanje. Izvorni diktat čuva se uz potvrđeni unos.
-- Diktiranje na hrvatskom (`hr-HR`): mikrofon → tekst → lokalni prijedlog projekta i kategorija → ispravci → potvrda spremanja. Projekt i kategorije uvijek se mogu ručno promijeniti. Uređivanje teksta dostupno je i bez mikrofona.
-- Sigurnosna kopija: izvoz i uvoz verzioniranog JSON-a u Postavkama (zupčanik uz mikrofon). Uvoz provjerava format, verziju, veličinu, obvezna polja, identifikatore i povezanost podataka prije spremanja.
+**Snimi razgovor → završi i sačuvaj → preslušaj → dopusti transkripciju → provjeri cijeli tekst → dopusti analizu odabranog konteksta → ispravi i potvrdi informacije.**
 
-Pravila diktata prepoznaju izraze poput „trebam”, „moram”, „problem”, „nedostaje” i „nemamo”. To nisu jezični AI modeli: rezultat se obvezno pregledava. Rokovi i prioriteti ne izvode se iz govora; zadajte ih u uređivanju zadatka nakon spremanja. Naziv ili broj projekta mora se dovoljno jasno pojaviti u tekstu. Kod nejasnog odabira projekt se bira ručno.
+- Snimanje je kontinuirani lokalni PCM CAF zapis, a ne kratka Apple Speech sesija. Pauziranje i nastavak koriste isti master. Nema umjetnog ograničenja na 20 minuta; praktične granice su prostor, baterija i iOS.
+- Dnevnik oporavka nastaje prije početka zvuka; ažurira se i baza. Nakon prekida ili ponovnog pokretanja sačuvani zapis vraća se u Memoriju. Audio se nikad ne briše zbog neuspjele transkripcije.
+- Tek nakon završetka izrađuju se poredani AAC dijelovi do 60 sekundi, koji se šalju zasebno i redom. Svaki uspješan rezultat odmah se lokalno sprema; ponovni pokušaj preskače uspješne dijelove, a izričita ponovna obrada može ih ponovno poslati.
+- Cijeli transkript ostaje sačuvan. Ispravci stvaraju novu verziju; ranije verzije i njihove reference ostaju dostupne. Ne prepisuju se sažetkom.
+- AI analizira sve dijelove dugog teksta, uz prethodni prozor istog izvora i pregledani lokalni kontekst. Odvaja činjenice, dogovore, planove, prijedloge, neizvjesnosti, zadatke, probleme, odluke, promjene, rokove i otvorena pitanja.
+- Svaki prijedlog ima provjereni doslovni citat i UTF-16 raspon iz točne verzije transkripta. Projekt, vrstu, pouzdanost, opis, osobu i rok uređuje korisnik prije potvrde. Ponovna potvrda istih prijedloga ne stvara iste zapise ponovno.
+- Potvrđene informacije dodaju se kronološki. Zadaci i problemi povezani su s izvornim zapisom; promjena može upućivati na prethodni zapis bez njegova brisanja.
+- Kartice: **Projekti, Zadaci, Problemi, Memorija, Pitaj ured**. Projekt prikazuje trenutačno stanje, otvorene stavke, potvrđene odluke i cjelovitu kronologiju. Memorija pretražuje i arhivu, snimke i sve verzije transkripata.
 
-## Privatnost i rad bez interneta
+Prekid pozivom pauzira mikrofon; nastavite ručno. Snimanje u pozadini i pri zaključanom ekranu koristi deklarirani audio background mode. Aplikacija **ne snima zvuk telefonskog poziva**. Nakon razgovora možete prepričati sadržaj. CAF čuva napisane audio okvire bez ovisnosti o završnom MP4 indeksu, ali gašenje uređaja ili prisilni prekid može izgubiti još nezapisane hardverske buffere. Djelomične datoteke ostaju sačuvane za oporavak; apsolutni gubitak nula uzoraka ne jamči se.
 
-Svi uredski podaci nalaze se u trajnoj lokalnoj SwiftData bazi u aplikacijskom spremniku. Nema automatskog slanja podataka vanjskom AI servisu. CRUD, pretraživanje, pravila razvrstavanja i JSON kopije rade bez interneta.
+## Cloud AI konfiguracija
 
-Offline prepoznavanje hrvatskog govora ovisi o uređaju, iOS-u i dostupnim jezičnim modelima. Aplikacija preferira prepoznavanje na uređaju. Ako nije podržano, **prije mrežnog snimanja traži izričit pristanak** za Appleovo prepoznavanje. Odbijanje ne blokira ručni unos. Prekid, odbijeno dopuštenje i pogreške zadržavaju već dobiveni tekst za pregled. Speech prepoznavanje može vremenski ograničiti sesiju; za duže bilješke napravite više unosa.
+Snimanje, pauza, pohrana, pregled, ručne ispravke, lokalno pretraživanje i sigurnosne kopije rade bez interneta. **Napredna transkripcija, semantička analiza i odgovori zahtijevaju backend, internet i AI račun.** Modeli se ne izvršavaju na iPhoneu i nema obećanja offline AI-ja.
 
-JSON kopija sadrži i osjetljive podatke projekata i izvorne diktate u čitljivom obliku: spremite je na lokaciju kojoj vjerujete. Uvoz radi spajanje po stabilnim UUID-ovima: dodaje nove i obnavlja postojeće zapise iz kopije, bez brisanja ostalih zapisa. **Prije uvoza izvezite aktualno stanje**, jer starija kopija može zamijeniti novije podatke istog zapisa. Uvoz je spajanje, a ne povrat cijele baze u prijašnji trenutak: noviji zapisi koji nisu u kopiji ostaju sačuvani, uključujući povijest faza. Najveća veličina kopije je 20 MB. Izvoz nije zamjena za redovitu sigurnosnu kopiju; brisanje aplikacije briše njezin lokalni spremnik.
+Backend je u [backend/](backend/README.md): Node.js 24+, bez dodatnih npm paketa, odvojeni token uređaja, provjereni strukturirani odgovori, ograničenja veličine i vremena, bez spremanja sadržaja na poslužiteljski disk. Stvarni OpenAI ključ postavlja se isključivo kao `OPENAI_API_KEY` na poslužitelju. Nemojte ga unositi u iPhone ni Git.
 
-## Arhitektura
+1. Postavite backend na svoj poslužitelj prema njegovu README-u. Podesite `OPENAI_API_KEY` i slučajni `DEVICE_ACCESS_TOKEN` od najmanje 32 znaka kroz sigurne server postavke.
+2. Osigurajte HTTPS domenu s valjanim certifikatom i reverse proxyjem prema backendu. Zadano sluša na loopback adresi; nema javnog deploymenta uključenog u ovu isporuku.
+3. U iPhone aplikaciji otvorite **zupčanik → Cloud AI poslužitelj**, unesite baznu HTTPS adresu bez `/v1` i **token uređaja**, ne OpenAI ključ. Token je u Keychainu i vezan uz točnu konfiguriranu adresu. Preusmjeravanja HTTP zahtjeva odbijaju se.
+4. Snimite kratak probni razgovor i zasebno dopustite slanje zvuka. Pri analizi pregledajte transkript, projekte i prethodne zapise koji će se poslati. Trošak stvarne cloud obrade ovisi o vašem pružatelju/računu.
 
-- `ArhitektOffice/App`: pokretanje trajne baze i četiri glavne kartice.
-- `Models/OfficeModels.swift`: projekti, zadaci, problemi, bilješke i povijest faza; stabilni UUID-ovi, eksplicitni odnosi i kaskadna pravila.
-- `Services`: neovisni parser diktata, upravljanje Speech/AVAudioEngine sesijom i validirane JSON kopije.
-- `Views`: SwiftUI upiti i odvojeni obrasci; izmjene se spremaju izričito i prikazuju pogrešku pri neuspjehu.
-- `ArhitektOfficeTests`: XCTest provjere parsera, pohrane, odnosa, sigurnosnih kopija i politike diktiranja.
+Zadani modeli: `gpt-4o-transcribe` za hrvatski govor i `gpt-4.1-mini` za strukturiranu analizu i odgovore. Podrška je provjerena u službenim OpenAI OpenAPI/SDK izvorima dostupnim iz okruženja; detalji i ograničenja provjere u backend README-u. Dostupnost vašem računu provjerava se tek stvarnim API pozivom.
 
-Baza je namjerno konfigurirana s `cloudKitDatabase: .none`. Zadane vrijednosti, neobvezni inverse odnosi i odsutnost unique ograničenja pripremaju model za budući CloudKit. Stvarna iCloud sinkronizacija zahtijeva zasebno omogućavanje mogućnosti, migracijsku strategiju, pravila konflikata i testiranje; ova verzija je ne uključuje. Napredniji razvrstavač može zamijeniti `DictationParser` bez promjena pohrane ili obveznog mrežnog API-ja.
+„Pitaj Arhitekt Office” prvo radi lokalni dohvat. Pregledate točne izvatke, uklonite neželjene izvore i zasebno dopustite slanje pitanja. Uz odgovor se prikazuju izvorni zapisi i datumi. Bez izvora daje se izričita obavijest da nema dovoljno podataka. Provjera citata ograničava izvore, ali ne može matematički jamčiti semantičku točnost modela; pregled ostaje potreban. Lokalni dohvat koristi pretraživanje teksta, prefikse i datumske filtre, a ne embeddings; za drugačije formulacije pokušajte naziv projekta ili drugi pojam.
 
-## Provjere
+## Sigurnosne kopije i privatnost
 
-Na Macu:
+**Zupčanik → Kopija podataka i audio snimki** izvozi paket `.officebackup` s JSON podacima i zvukom. To je potpuna prenosiva kopija; za iCloud Drive ili drugo odredište koristite sistemsku aplikaciju Datoteke. Paket je obična mapa dokumenta, bez aplikacijskog šifriranja, pa odaberite sigurno odredište. Audio povećava veličinu: 20 minuta 16 kHz mono PCM-a približno je 38 MB prije AAC kopija.
+
+JSON izvoz ostaje dostupan za interoperabilnost, ali **ne sadrži audio bajtove**. V2 format čuva metapodatke, transkripte, AI nacrte i memoriju; uvoz v1 formata ostaje podržan. Uvoz spaja zapise po UUID-u, ne briše ostale zapise i čuva neizmjenjive izvorne verzije. Paket provjerava putanje, simboličke veze, veličine i sukobe datoteka. Jednaki postojeći audio zapisi ne prepisuju se; različiti sadržaj istog puta odbija se. Paket je ograničen na 2 GiB; JSON na 20 MB.
+
+Zvuk i dnevnik imaju iOS zaštitu `completeUntilFirstUserAuthentication`, koja omogućuje nastavak snimanja nakon zaključavanja tek nakon prvog otključavanja uređaja. Lokalna baza ostaje u sandboxu aplikacije. Cloud slanje traži izričitu privolu za svaku operaciju. Moguće je obrisati samo audio uz očuvanje transkripata i memorije. Brisanje aplikacije uklanja njezine lokalne podatke. iCloud sinkronizacija nije uključena; modeli su pripremljeni za buduću zasebno testiranu nadogradnju.
+
+## Testiranje i struktura
+
+- `App/`: trajna baza, oporavak na pokretanju i navigacija.
+- `Models/`: postojeći uredski modeli + snimke, dijelovi, verzije transkripta i memorija.
+- `Services/`: audio, oporavak, Keychain konfiguracija, AI klijent, dohvat, obrada, potvrda, kopije.
+- `Views/`: snimanje, potpuni transkripti, pregled AI prijedloga, kronologija i pitanja.
+- `backend/`: zaseban provjerljiv HTTP integracijski sloj.
 
 ```sh
-xcodebuild -list -project ArhitektOffice.xcodeproj
+# Linux ili Mac, stvarni lokalni backend testovi s lažnim AI providerom:
+cd backend
+npm ci --ignore-scripts
+npm test
+```
+
+Na Macu u korijenu projekta:
+
+```sh
 xcodebuild build -project ArhitektOffice.xcodeproj -scheme ArhitektOffice \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
-# Prilagodite ime simulatora onome dostupnom u Xcodeu:
 xcodebuild test -project ArhitektOffice.xcodeproj -scheme ArhitektOffice \
   -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO
 ```
 
-`⌘U` izvršava iste XCTest testove u Xcodeu. GitHub Actions konfiguracija u `.github/workflows/ios.yml` također radi simulator build i testove na macOS-u; izvršavanje tog CI-ja nije potvrđeno u ovoj isporuci. Za provjere fizičkog mikrofona, dopuštenja, prekida i restarta uređaja slijedite [ručne provjere](docs/TESTIRANJE.md).
+Ime simulatora prilagodite svojem Xcodeu. `⌘U` pokreće XCTest. GitHub Actions uključuje iOS i backend provjere. Stvarna hrvatska transkripcija, mikrofon, prekidi, pozadina i migracija baze zahtijevaju provjeru na uređaju prema [TESTIRANJE.md](docs/TESTIRANJE.md).
 
-Ova isporuka izrađena je u Linux okruženju bez Xcodea i Swift toolchaina. Statičke provjere strukture i sintakse opisane su u `docs/REZULTATI.md`. Za ponavljanje tih provjera koristite Python virtualno okruženje, instalirajte `tools/validation-requirements.txt` i pokrenite `python3 tools/validate_project.py`. **iOS build, XCTest i instalacija na stvarni iPhone ovdje nisu izvršeni.**
+U ovom Linux okruženju **nema Swift/Xcode toolchaina**. Backend testovi i statičke provjere su izvedivi; iOS build, XCTest i instalacija nisu izvršeni. Rezultati su u [REZULTATI.md](docs/REZULTATI.md). Backend nije objavljen i stvarni AI pozivi nisu testirani bez konfiguriranih ključeva.
 
-## Održavanje projekta
-
-Xcode projekt je uključen i otvara se izravno. Ako dodajete datoteke izvan Xcodea, možete ponovno generirati projekt naredbom `python3 tools/generate_project.py` ili ih dodati u odgovarajući Xcode target. Generator treba samo Python 3 i reproducibilan je; pregazit će ručne promjene u `.pbxproj` i zajedničkoj shemi, pa sačuvajte vlastite postavke potpisivanja. `tools/generate_icon.py` regenerira priloženu ikonu i treba Pillow, koji nije ovisnost aplikacije.
+Xcode projekt je već generiran. Ako dodate izvore izvan Xcodea, `python3 tools/generate_project.py` obnavlja projekt/sheme i pregazit će ručne Xcode postavke. Statički validator: u Python virtualnom okruženju instalirajte `tools/validation-requirements.txt` i pokrenite `python3 tools/validate_project.py`; on ne zamjenjuje Apple SDK build.

@@ -6,3 +6,9 @@ xcuserdata/
 *.xcresult
 __pycache__/
 *.pyc
+
+# Backend credentials and dependencies
+.env
+.env.*
+!.env.example
+node_modules/

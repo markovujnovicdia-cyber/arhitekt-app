@@ -1,35 +1,41 @@
-# Rezultati provjera — 3. studenoga 2026.
+# Arhitekt Office 2.0 — rezultati 7. studenoga 2026.
 
-## Izvršeno u ovom okruženju
+Okruženje se nakon prethodne greške uspješno pokrenulo. Razvoj i provjere obavljeni su na Linuxu s Pythonom3.12 i Node.js24.19.0. Swift i Xcode nisu instalirani.
 
-Okruženje: Linux, Python 3.12.14. Naredbe `command -v xcodebuild` i `command -v swift` nisu pronašle te alate.
+## Izvršeno i prošlo
 
-- `tools/validate_project.py`: uspješno parsirano 15 Swift datoteka s Tree-sitter Swift parserom, bez sintaktičkih grešaka. Ovo nije Swift compiler niti provjera tipova.
-- OpenStep/Xcode parser uspješno je učitao `project.pbxproj`; sve Swift datoteke uključene su u odgovarajuće source build faze.
-- Provjerena je prisutnost svih referenciranih datoteka i resursa, valjanost `Info.plist` i obaju opisa dopuštenja, XML zajedničke sheme te JSON kataloga resursa.
-- Provjereno je da ikona ima dimenzije 1024 × 1024 i RGB format bez alpha kanala.
-- Ponovna generacija Xcode projekta i sheme daje identične SHA-256 sažetke; generator je ponovljiv.
-- Python pomoćne skripte prolaze `py_compile`.
-- Pregledana je povezanost modela, obrasci, mrežna privola i rukovanje prekidima. Popravljeni su višeredno razdvajanje diktata bez interpunkcije, zapis podnožja obrasca, zaštita prijepisa kod neuspjelog novog snimanja te spremanje diktata u glavni kontekst radi osvježavanja sučelja.
+- `npm ci --ignore-scripts` u backend direktoriju: reproducibilna instalacija bez dodatnih runtime paketa.
+- `npm test`: **28 testova, 28 prošlo, 0 neuspjelih, 0 preskočenih**. Testovi koriste pravi lokalni HTTP server i kontrolirani lažni AI provider. Provjereni su autentikacija, multipart audio, redoslijed, dugi tekst, UTF-16 citati, nepoznati/izmišljeni izvori, duplikati, kalendarski datumi, ograničenja, API greške, timeout, nepotpuni odgovori, nedostatan kontekst i kompatibilnost Swift JSON kodiranja.
+- `tools/validate_project.py`: **36 Swift datoteka** parsirano bez sintaktičkih grešaka; OpenStep/Xcode projekt je čitljiv, svi izvori u build fazama, resursi postoje, Info.plist i shema su valjani, ikona je1024px RGB bez alpha kanala. Ovo nije provjera Swift tipova ni Apple SDK-a.
+- Ponovna generacija Xcode projekta i sheme daje iste SHA-256 vrijednosti.
+- `git diff --check` prolazi.
+- Službeni OpenAI OpenAPI i Node SDK izvori dostupni kroz raw.githubusercontent.com potvrđuju odabrane modele i JSON/audio integracijski ugovor. Izravne dokumentacijske domene blokirane su politikom okruženja; backend README navodi granice provjere. Veličina20MiB je ograničenje ove implementacije, a ne tvrdnja o aktualnom ukupnom limitu pružatelja.
 
-## Napisani testovi, ovdje NEIZVRŠENI
+## Napisano, nije izvršeno
 
-17 XCTest metoda: 14 u `DataServicesTests` i 3 u `SpeechPolicyTests`.
+**47 XCTest metoda** uključeno je u Xcode test target:
 
-Obuhvat: hrvatski primjer diktata i izvorni tekst, razdvajanje višerednog unosa, dvosmisleni/arhivirani projekti, povijest faza, graf odnosa i JSON roundtrip, ponovljeni uvoz bez duplikata, obnavljanje zapisa, nevaljani podaci i verzije, ograničenje veličine, zaštita nespremljenih izmjena, sukobi vlasništva, sprečavanje gubitka nepovezanih zapisa pri izvozu, kaskadno brisanje izoliranog projekta, trajni spremnik i uređeni podaci nakon ponovnog otvaranja te politika mrežne privole.
+- 14 postojećih podatkovnih/parser testova.
+- 3 testa stare politike Apple Speech mrežne privole, zadržana radi kompatibilnosti.
+- 10 testova projektne memorije, revizija, dokaza, potvrde, duplikata, datuma i JSONv1/v2.
+- 8 audio testova: dnevnik prije početka, oporavak20min sesije, nevaljana putanja, nečitljiv djelomični zapis, stvarni sintetički121s CAF→uređeni AAC dijelovi, retry, otkazivanje, brisanje uz očuvanje izvora.
+- 8 testova prenosivog audio paketa, ponovljenog uvoza, sukoba, nevaljanog JSON-a, nedostajućih dijelova i simboličkih poveznica.
+- 4 testa točnih UTF-16 izvora, lokalnog dohvata, ograničenih izvadaka iz dugog transkripta i izričitog nedostatka konteksta.
 
-Testovi stvarne baze koriste privremeni direktorij ili memorijski spremnik. Testovi politike govora ne pokreću mikrofon ni dijaloge dopuštenja.
+XCTest nad stvarnim zvukom koristi sintetički audio u privremenom direktoriju, ne mikrofon. Broj napisanih testova nije tvrdnja da su prošli.
 
-## Nije izvršeno
+## Zahtijeva vanjsku konfiguraciju ili Apple uređaj
 
-- Swift/Apple SDK provjera tipova i SwiftData makroa.
-- Xcode build, XCTest na simulatoru i GitHub Actions workflow.
-- Instalacija na fizički iPhone, prepoznavanje hrvatskog govora, stvarni prekidi i dopuštenja.
-- Zatvaranje aplikacije/restart fizičkog uređaja i provjera trajnosti na njemu.
-- Objava u App Store, TestFlight ili objavljivanje cloud okruženja.
+- Nisu izvršeni iOS build, Apple SDK typecheck/SwiftData makroi, XCTest ni stvarna migracija postojeće baze1.0.
+- Nisu testirani pravi mikrofon, hrvatska transkripcija, poziv, zaključavanje i oporavak na fizičkom iPhoneu. Provjere su u TESTIRANJE.md.
+- Backend nije deployan. Nisu konfigurirani server OpenAI ključ, token uređaja ni javni HTTPS URL. Stvarni API pozivi i semantička kvaliteta modela nisu provjereni.
+- CI datoteke su pripremljene; njihov udaljeni rezultat nije potvrđen ovom lokalnom provjerom.
+- iCloud sinkronizacija nije uključena.
 
-Projekt uključuje build/test shemu i macOS GitHub Actions workflow za nastavak provjere. Otvaranje u Xcodeu i testiranje na uređaju nužni su prije produkcijske uporabe. Upute su u `README.md` i `TESTIRANJE.md`.
+## Važna ograničenja
 
-## Ograničenja implementacije
+AI dobiva samo korisnički pregledan kontekst i puni odabrani transkript; odgovori/citati prolaze strukturnu validaciju, ali to ne jamči semantičku nepogrešivost. Potvrda korisnika obvezna je prije strukturiranih izmjena. Lokalni dohvat je tekstualan, bez embeddingsa; ponekad treba drugi pojam ili odabir projekta. Relativni/nejasni rokovi ostaju u opisu dok ih korisnik ne razjasni.
 
-Offline hrvatsko diktiranje ovisi o podršci uređaja. Rokovi i prioriteti unose se ručno. iCloud sinkronizacija nije uključena. JSON uvoz spaja i obnavlja zapise po UUID-u, a ne vraća cijelu bazu u prijašnji trenutak; zapisi izvan kopije ostaju, uključujući noviju povijest faza. Kopije su običan JSON, bez aplikacijskog šifriranja.
+Snimanje koristi kontinuirani zaštićeni CAF master i dnevnik; nema pauziranja radi granica slanja. Pri prisilnom gašenju moguće je izgubiti još nezapisane buffere. Nečitljivi djelomični audio ne briše se. Cloud obrada radi u aktivnoj aplikaciji; prekid zahtjeva čuva već obrađene dijelove za retry.
+
+JSON ne uključuje audio bajtove. Paket .officebackup uključuje zvuk i nije dodatno šifriran. Različite datoteke istog puta odbijaju se, bez prepisivanja. Ne postoji jedna transakcija koja obuhvaća i SQLite i datotečni sustav pri prisilnom prekidu; instalirane datoteke mogu ostati kao oporavljive snimke i ponovni uvoz koristi identične datoteke.

@@ -51,6 +51,10 @@ enum IssueStatus: String, Codable, CaseIterable, Identifiable, Hashable {
     var noteRecords: [ProjectNote]? = []
     @Relationship(deleteRule: .cascade, inverse: \PhaseChange.project)
     var phaseRecords: [PhaseChange]? = []
+    @Relationship(deleteRule: .nullify, inverse: \RecordingSession.project)
+    var recordingRecords: [RecordingSession]? = []
+    @Relationship(deleteRule: .nullify, inverse: \MemoryEntry.project)
+    var memoryRecords: [MemoryEntry]? = []
 
     var phase: ProjectPhase {
         get { ProjectPhase(rawValue: phaseRaw) ?? .conditions }
@@ -60,6 +64,8 @@ enum IssueStatus: String, Codable, CaseIterable, Identifiable, Hashable {
     var issues: [ProjectIssue] { issueRecords ?? [] }
     var notes: [ProjectNote] { noteRecords ?? [] }
     var phaseHistory: [PhaseChange] { phaseRecords ?? [] }
+    var recordings: [RecordingSession] { recordingRecords ?? [] }
+    var memory: [MemoryEntry] { memoryRecords ?? [] }
     var openTaskCount: Int { tasks.filter { $0.status == .open }.count }
     var openIssueCount: Int { issues.filter { $0.status == .open }.count }
 
@@ -104,6 +110,8 @@ enum IssueStatus: String, Codable, CaseIterable, Identifiable, Hashable {
     var priorityRaw: String = TaskPriority.normal.rawValue
     var statusRaw: String = TaskStatus.open.rawValue
     var createdAt: Date = Date()
+    var responsible: String?
+    var sourceMemoryID: UUID?
     var project: Project?
 
     var priority: TaskPriority {
@@ -131,6 +139,7 @@ enum IssueStatus: String, Codable, CaseIterable, Identifiable, Hashable {
     var resolution: String = ""
     var statusRaw: String = IssueStatus.open.rawValue
     var createdAt: Date = Date()
+    var sourceMemoryID: UUID?
     var project: Project?
 
     var status: IssueStatus {
@@ -150,6 +159,7 @@ enum IssueStatus: String, Codable, CaseIterable, Identifiable, Hashable {
     var sourceTranscript: String?
     var createdAt: Date = Date()
     var modifiedAt: Date = Date()
+    var sourceMemoryID: UUID?
     var project: Project?
 
     init(text: String, sourceTranscript: String? = nil, project: Project? = nil) {

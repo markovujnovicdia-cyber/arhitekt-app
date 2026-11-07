@@ -18,6 +18,18 @@ private struct ProjectSelector: View {
     }
 }
 
+private struct SourceMemorySection: View {
+    let memoryID: UUID?
+    @Query private var entries: [MemoryEntry]
+    var body: some View {
+        if let memoryID, let entry = entries.first(where: { $0.id == memoryID }) {
+            Section("Izvor informacije") {
+                NavigationLink("Potvrđeni zapis i izvorni transkript") { MemoryEntryDetailView(entry: entry) }
+            }
+        }
+    }
+}
+
 struct ProjectEditor: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.dismiss) private var dismiss
@@ -95,6 +107,7 @@ struct TaskEditor: View {
     var project: Project?
     @State private var title = ""
     @State private var details = ""
+    @State private var responsible = ""
     @State private var projectID: UUID?
     @State private var priority = TaskPriority.normal
     @State private var status = TaskStatus.open
@@ -112,6 +125,7 @@ struct TaskEditor: View {
                 Section("Zadatak") {
                     TextField("Naziv zadatka", text: $title, axis: .vertical)
                     TextField("Opis", text: $details, axis: .vertical).lineLimit(3...8)
+                    TextField("Odgovorna osoba (neobvezno)", text: $responsible)
                     ProjectSelector(projects: projects, selection: $projectID)
                 }
                 Section("Organizacija") {
@@ -126,6 +140,7 @@ struct TaskEditor: View {
                 }
                 if let task {
                     Section { LabeledContent("Evidentirano") { Text(task.createdAt, format: .dateTime.day().month().year().hour().minute()) } }
+                    SourceMemorySection(memoryID: task.sourceMemoryID)
                     Section { Button("Obriši zadatak", role: .destructive) { confirmDelete = true } }
                 }
             }
@@ -140,6 +155,7 @@ struct TaskEditor: View {
                 projectID = task?.project?.id ?? project?.id
                 guard let task else { return }
                 title = task.title; details = task.details; priority = task.priority; status = task.status
+                responsible = task.responsible ?? ""
                 hasDueDate = task.dueDate != nil; dueDate = task.dueDate ?? Date()
             }
             .confirmationDialog("Trajno obrisati zadatak?", isPresented: $confirmDelete, titleVisibility: .visible) {
@@ -166,6 +182,8 @@ struct TaskEditor: View {
             modelContext.insert(record)
         }
         record.status = status
+        let person = responsible.trimmingCharacters(in: .whitespacesAndNewlines)
+        record.responsible = person.isEmpty ? nil : person
         selectedProject.touch()
         do { try modelContext.save(); dismiss() }
         catch { modelContext.rollback(); errorMessage = error.localizedDescription }
@@ -213,6 +231,7 @@ struct IssueEditor: View {
                 }
                 if let issue {
                     Section { LabeledContent("Evidentirano") { Text(issue.createdAt, format: .dateTime.day().month().year().hour().minute()) } }
+                    SourceMemorySection(memoryID: issue.sourceMemoryID)
                     Section { Button("Obriši problem", role: .destructive) { confirmDelete = true } }
                 }
             }
@@ -285,6 +304,7 @@ struct NoteEditor: View {
                     TextField("Tekst bilješke", text: $text, axis: .vertical).lineLimit(8...20)
                 }
                 if let note {
+                    SourceMemorySection(memoryID: note.sourceMemoryID)
                     Section("Datumi") {
                         LabeledContent("Evidentirano") { Text(note.createdAt, format: .dateTime.day().month().year().hour().minute()) }
                         LabeledContent("Uređeno") { Text(note.modifiedAt, format: .dateTime.day().month().year().hour().minute()) }

@@ -84,6 +84,9 @@ struct TasksView: View {
                                 Text(task.title).font(.headline).foregroundStyle(.primary)
                                     .strikethrough(task.status == .completed)
                                 Text(task.project?.name ?? "Projekt nije dodijeljen").font(.subheadline).foregroundStyle(.secondary)
+                                if let responsible = task.responsible, !responsible.isEmpty {
+                                    Label(responsible, systemImage: "person").font(.caption).foregroundStyle(.secondary)
+                                }
                                 HStack {
                                     Text(task.priority.rawValue)
                                         .foregroundStyle(task.priority == .high ? Color.orange : Color.secondary)

@@ -14,8 +14,53 @@ struct ProjectDetailView: View {
     @State private var selectedNote: ProjectNote?
     @State private var errorMessage: String?
 
+    private var timeline: [MemoryTimelineItem] {
+        var records = project.recordings.map(MemoryTimelineItem.recording)
+        records.append(contentsOf: project.memory.map(MemoryTimelineItem.entry))
+        records.append(contentsOf: project.notes.map(MemoryTimelineItem.note))
+        records.append(contentsOf: project.tasks.map(MemoryTimelineItem.task))
+        records.append(contentsOf: project.issues.map(MemoryTimelineItem.issue))
+        records.append(contentsOf: project.phaseHistory.map(MemoryTimelineItem.phase))
+        return records.sorted { $0.date > $1.date }
+    }
+
+    private var currentMemory: [MemoryEntry] {
+        let continued = Set(project.memory.compactMap(\.relatedEntryID))
+        return project.memory.filter { !continued.contains($0.id) }.sorted { $0.createdAt > $1.createdAt }
+    }
+
     var body: some View {
         List {
+            Section("Trenutačno stanje") {
+                LabeledContent("Faza", value: project.phase.rawValue)
+                LabeledContent("Otvoreni zadaci", value: String(project.openTaskCount))
+                LabeledContent("Neriješeni problemi", value: String(project.openIssueCount))
+                LabeledContent("Otvorena pitanja", value: String(currentMemory.filter { $0.kind == .question }.count))
+                if let summary = currentMemory.first(where: { $0.kind == .summary }) {
+                    NavigationLink { MemoryEntryDetailView(entry: summary) } label: {
+                        VStack(alignment: .leading, spacing: 5) {
+                            Text(summary.details.isEmpty ? summary.title : summary.details)
+                            Text(summary.certainty.label).font(.caption).foregroundStyle(.secondary)
+                            Text(summary.createdAt, format: .dateTime.day().month().year().hour().minute())
+                                .font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                } else {
+                    Text("Sažetak nastaje tek nakon pregleda i potvrde informacija. Izvorna kronologija uvijek ostaje dostupna.")
+                        .font(.footnote).foregroundStyle(.secondary)
+                }
+                ForEach(Array(currentMemory.filter { [.decision, .agreement, .change].contains($0.kind) }.prefix(3))) { entry in
+                    NavigationLink { MemoryEntryDetailView(entry: entry) } label: {
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(entry.title)
+                            Text(entry.kind.label + " · " + entry.certainty.label).font(.caption).foregroundStyle(.secondary)
+                        }
+                    }
+                }
+                if !project.isArchived {
+                    Button { showDictation = true } label: { Label("Snimi sastanak ili razgovor", systemImage: "mic.fill") }
+                }
+            }
             Section("Projekt") {
                 if !project.number.isEmpty { LabeledContent("Broj", value: project.number) }
                 if !project.investor.isEmpty { LabeledContent("Investitor", value: project.investor) }
@@ -89,6 +134,11 @@ struct ProjectDetailView: View {
                     }
                 }
             }
+            Section("Cjelovita kronologija") {
+                ForEach(timeline) { item in
+                    NavigationLink { MemoryTimelineDestination(item: item) } label: { MemoryTimelineRow(item: item) }
+                }
+            }
             Section {
                 Button {
                     project.isArchived.toggle()
@@ -114,7 +164,7 @@ struct ProjectDetailView: View {
         .sheet(isPresented: $showTaskEditor) { TaskEditor(project: project) }
         .sheet(isPresented: $showIssueEditor) { IssueEditor(project: project) }
         .sheet(isPresented: $showNoteEditor) { NoteEditor(project: project) }
-        .sheet(isPresented: $showDictation) { DictationView(project: project) }
+        .sheet(isPresented: $showDictation) { LongRecordingView(project: project) }
         .sheet(item: $selectedTask) { TaskEditor(task: $0) }
         .sheet(item: $selectedIssue) { IssueEditor(issue: $0) }
         .sheet(item: $selectedNote) { NoteEditor(note: $0) }

@@ -4,7 +4,8 @@ import SwiftData
 
 @MainActor final class DataServicesTests: XCTestCase {
     private var schema: Schema {
-        Schema([Project.self, ProjectTask.self, ProjectIssue.self, ProjectNote.self, PhaseChange.self])
+        Schema([Project.self, ProjectTask.self, ProjectIssue.self, ProjectNote.self, PhaseChange.self,
+                RecordingSession.self, AudioSegment.self, TranscriptVersion.self, MemoryEntry.self])
     }
 
     private func memoryContainer() throws -> ModelContainer {
