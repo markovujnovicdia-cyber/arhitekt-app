@@ -1,9 +1,0 @@
-{
-  "name": "arhitekt-office-backend",
-  "version": "2.0.0",
-  "private": true,
-  "type": "module",
-  "description": "Private stateless AI proxy for Arhitekt Office",
-  "engines": { "node": ">=24" },
-  "scripts": { "start": "node --env-file-if-exists=.env src/server.js", "test": "node --test" }
-}

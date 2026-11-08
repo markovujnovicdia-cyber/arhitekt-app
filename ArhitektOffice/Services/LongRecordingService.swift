@@ -4,7 +4,7 @@ import Foundation
 import SwiftData
 
 /// Continuous, local-first recording. A PCM CAF master avoids encoding-container
-/// finalization dependencies and chunk-boundary gaps. Only upload copies are AAC.
+/// finalization dependencies and chunk-boundary gaps. Optional export copies are AAC.
 @MainActor
 final class LongRecordingService: NSObject, ObservableObject {
     static let shared = LongRecordingService()
@@ -172,7 +172,7 @@ final class LongRecordingService: NSObject, ObservableObject {
         startTimer()
     }
 
-    /// Stop only finalizes local storage; no network request is made here.
+    /// Stop finalizes the local source. Whisper later reads it without any network request.
     func finish() throws {
         guard state == .recording || state == .paused else { return }
         elapsed = max(elapsed, recorder?.currentTime ?? 0)
@@ -233,7 +233,11 @@ final class LongRecordingService: NSObject, ObservableObject {
         for journal in scan.manifests {
             if currentSession?.id == journal.id, state == .recording || state == .paused { continue }
             let session: RecordingSession
-            if let stored = existing.first(where: { $0.id == journal.id }) { session = stored }
+            if let stored = existing.first(where: { $0.id == journal.id }) {
+                // A stale journal must never resurrect explicitly deleted audio.
+                if stored.stateRaw == "audioDeleted" { continue }
+                session = stored
+            }
             else {
                 session = RecordingSession(title: journal.title, project: projects.first(where: { $0.id == journal.projectID }))
                 session.id = journal.id
@@ -308,11 +312,15 @@ final class LongRecordingService: NSObject, ObservableObject {
     }
 
     func deleteAudio(for session: RecordingSession, context: ModelContext) throws {
-        guard !exportingSessions.contains(session.id) else { throw RecordingError.processingInProgress }
+        guard !exportingSessions.contains(session.id), !LocalInferenceCoordinator.shared.isBusy else {
+            throw RecordingError.processingInProgress
+        }
         guard !(currentSession?.id == session.id && (state == .recording || state == .paused || state == .preparing)) else {
             throw RecordingError.recordingInProgress
         }
         if playingSessionID == session.id { stopPlayback() }
+        if context.hasChanges { try context.save() }
+        try recoverCheckpointTextBeforeDeletingAudio(session: session, context: context)
         try store.deleteAudio(id: session.id)
         // Preserve transcript history and metadata, including segment transcripts.
         session.masterRelativePath = nil
@@ -320,6 +328,26 @@ final class LongRecordingService: NSObject, ObservableObject {
         session.updatedAt = Date()
         for segment in session.segments { segment.stateRaw = "audioDeleted" }
         try context.save()
+    }
+
+    /// A checkpoint can be one window ahead of SwiftData after a save failure.
+    /// Surface that text as an explicitly partial revision before removing audio.
+    private func recoverCheckpointTextBeforeDeletingAudio(session: RecordingSession, context: ModelContext) throws {
+        guard let path = session.masterRelativePath,
+              let checkpoint = try? LocalTranscriptionCheckpointStore(files: store).load(recordingID: session.id),
+              let reader = try? LocalAudioReader(url: store.url(for: path)),
+              checkpoint.source == reader.fingerprint else { return }
+        let completed = checkpoint.windows.filter(\.completed)
+        let plain = completed.map(\.text).filter { !$0.isEmpty }.joined(separator: "\n\n")
+        guard !plain.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !session.transcripts.contains(where: { $0.text == plain }) else { return }
+        let recovered = "OPORAVLJENI DJELOMIČNI LOKALNI TRANSKRIPT\nObrađeno dijelova: \(completed.count)/\(checkpoint.windows.count). Ovaj tekst nije potvrđen kao cjelovit transkript.\n\n" +
+            checkpoint.windows.map { result in
+                result.completed ? result.text : "[Dio \(result.window.index + 1) nije transkribiran.]"
+            }.joined(separator: "\n\n")
+        let provider = "oporavljeni-djelomični-local"
+        guard !session.transcripts.contains(where: { $0.provider == provider && $0.text == recovered }) else { return }
+        _ = try MemoryStore.appendTranscript(text: recovered, to: session, provider: provider, context: context)
     }
 
     enum RecordingError: LocalizedError {

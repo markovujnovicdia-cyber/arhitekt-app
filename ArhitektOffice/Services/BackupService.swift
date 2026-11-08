@@ -409,6 +409,18 @@ private struct MemoryRecord: Codable {
         for segment in segments {
             try unique(segment.id); try safePath(segment.relativePath); try date(segment.createdAt)
             try text(segment.transcriptText); try text(segment.lastError); try text(segment.stateRaw, required: true)
+            if segment.stateRaw.hasPrefix("local:") {
+                let marker = segment.stateRaw.split(separator: ":", omittingEmptySubsequences: false)
+                guard marker.count == 3, marker[0] == "local", marker[2] == "completed",
+                      marker[1].count == 64, marker[1].allSatisfy({ "0123456789abcdefABCDEF".contains($0) }),
+                      let sessionID = segment.sessionID,
+                      let recording = recordings.first(where: { $0.id == sessionID }),
+                      let masterPath = recording.masterRelativePath,
+                      masterPath == "\(sessionID.uuidString)/master.caf",
+                      segment.relativePath == masterPath else {
+                    throw invalid("lokalni PCM dio mora upućivati na izvornu snimku i valjani model")
+                }
+            }
             guard segment.index >= 0, segment.duration.isFinite, segment.duration >= 0 else { throw invalid("nevaljan dio snimke") }
             if let session = segment.sessionID {
                 guard recordingIDs.contains(session), segmentOrder.insert("\(session)-\(segment.index)").inserted else {

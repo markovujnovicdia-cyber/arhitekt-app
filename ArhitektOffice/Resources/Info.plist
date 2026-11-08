@@ -23,9 +23,7 @@
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Mikrofon služi za dugo lokalno snimanje razgovora i sastanaka. Cloud transkripcija pokreće se zasebno, uz vašu suglasnost.</string>
-	<key>NSSpeechRecognitionUsageDescription</key>
-	<string>Prepoznavanje govora pretvara hrvatski diktat u tekst. Ako uređaj ne podržava lokalno prepoznavanje, uz vaš pristanak snimka se obrađuje kod Applea.</string>
+	<string>Mikrofon služi za kontinuirano lokalno snimanje sastanaka i bilješki. Zvuk i AI obrada ostaju na iPhoneu.</string>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UISupportedInterfaceOrientations</key>

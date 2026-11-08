@@ -32,7 +32,8 @@ struct SettingsView: View {
         NavigationStack {
             Form {
                 Section("AI i potpune kopije") {
-                    NavigationLink("Cloud AI poslužitelj") { CloudSettingsView() }
+                    NavigationLink("Lokalni AI modeli i izvođenje") { LocalModelsView() }
+                    NavigationLink("Mjerenja lokalnog izvođenja") { LocalRuntimeView() }
                     NavigationLink("Kopija podataka i audio snimki") { PortableBackupView() }
                 }
                 Section("JSON podaci bez zvuka") {
@@ -42,16 +43,16 @@ struct SettingsView: View {
                         .frame(minHeight: 44)
                     Text("JSON obuhvaća podatke i transkripte, ali ne i zvučne datoteke. Za prenosivu kopiju sa zvukom odaberite Kopija podataka i audio snimki.")
                         .font(.footnote).foregroundStyle(.secondary)
-                    Text("Uvoz dodaje nove zapise i obnavlja zapise s istim identifikatorom iz kopije. Ostali zapisi se ne brišu. Prije uvoza izvezite trenutačne podatke. iCloud sinkronizacija još nije uključena.")
+                    Text("Uvoz dodaje nove zapise i obnavlja zapise s istim identifikatorom iz kopije. Ostali zapisi se ne brišu. Prije uvoza izvezite trenutačne podatke.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
                 Section("Privatnost i pohrana") {
                     Label("Podaci se čuvaju lokalno na iPhoneu", systemImage: "iphone")
-                    Text("Dugo snimanje, pauza i lokalno čuvanje zvuka rade bez interneta. Cloud transkripcija, analiza i odgovori zahtijevaju konfiguriran backend, internet i zasebnu suglasnost prije slanja.")
-                    Text("API ključ AI pružatelja postoji samo na vašem poslužitelju. Token za pristup poslužitelju čuva se u privjesku ključeva uređaja. Brisanje aplikacije uklanja lokalne podatke; prethodno izvezite potpunu kopiju.")
+                    Text("Snimanje, transkripcija, analiza i odgovori koriste isključivo lokalnu pohranu i modele na iPhoneu. Aplikacija ne traži mrežni poslužitelj, registraciju ni API ključ.")
+                    Text("Modele uvezite iz aplikacije Datoteke. Aplikacija ih ne preuzima. Za lokalno izvođenje razvojna verzija mora sadržavati Whisper i llama.cpp biblioteke; postupak je opisan u uputama projekta. Brisanje aplikacije uklanja lokalne podatke i modele, stoga prethodno izvezite potpunu kopiju.")
                 }
                 Section("Arhitekt Office") {
-                    LabeledContent("Verzija", value: "2.0")
+                    LabeledContent("Verzija", value: "2.0 · lokalno")
                     Text("Osobni ured za arhitektonske projekte.")
                 }
             }

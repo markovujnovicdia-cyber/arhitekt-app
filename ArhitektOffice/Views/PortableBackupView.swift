@@ -37,7 +37,7 @@ struct PortableBackupView: View {
     var body: some View {
         Form {
             Section("Cjelovita kopija s audio snimkama") {
-                Text("Paket .officebackup sadrži uredske podatke, sve revizije transkripata, memoriju projekata, izvorni CAF zvuk, dijelove za obradu i dnevnike oporavka. API ključevi i postavke cloud pristupa nisu uključeni.")
+                Text("Paket .officebackup sadrži uredske podatke, sve revizije transkripata, memoriju projekata, izvorni CAF zvuk, dijelove za obradu i dnevnike oporavka. Datoteke lokalnih AI modela nisu uključene; na drugom uređaju uvezite ih zasebno.")
                 Button("Izvezi paket s audio snimkama", systemImage: "externaldrive.badge.plus") { exportPackage() }
                     .frame(minHeight: 44)
                     .disabled(busy || recordingActive)
@@ -53,7 +53,7 @@ struct PortableBackupView: View {
             Section("Sigurna obnova") {
                 Text("Prije uvoza izvezite trenutačno stanje. JSON se provjerava u odvojenoj privremenoj bazi prije kopiranja zvuka. Novi zapisi se dodaju; uredski zapisi s istim identifikatorom obnavljaju se prema pravilima JSON uvoza.")
                 Text("Izvorne audio datoteke nikad se ne prepisuju. Ako ista putanja već sadrži drukčiji zvuk ili dnevnik, uvoz se odbija. Jednake datoteke mogu se ponovno uvesti bez duplikata. Transkripti i postojeća memorija čuvaju se kao povijesni zapisi.")
-                Text("Paket je mapa koju Datoteke prikazuju kao dokument. Prenesite ga cijelog, primjerice preko iCloud Drivea ili AirDropa. Za dijeljenje e-poštom najprije ga komprimirajte u aplikaciji Datoteke i raspakirajte prije uvoza.")
+                Text("Paket je mapa koju Datoteke prikazuju kao dokument. Prenesite ga cijelog, primjerice AirDropom ili kabelom. Ako paket komprimirate, raspakirajte ga prije uvoza.")
             }
             Section("Prostor i privatnost") {
                 Text("Najviše 2 GB zvuka i 20 MB JSON metapodataka po paketu. Za uvoz je potreban prostor za privremenu i završnu kopiju novih snimaka. Ne prekidajte aplikaciju tijekom uvoza ili izvoza.")

@@ -41,8 +41,10 @@ struct AskResponse: Codable {
     var insufficientData: Bool
 }
 
-struct AIContextRecord: Codable, Identifiable, Hashable {
+struct AIContextRecord: Codable, Identifiable, Hashable, Sendable {
     var recordType: String = "record"
+    var sourceStartUTF16: Int? = nil
+    var sourceEndUTF16: Int? = nil
     var id: UUID
     var projectID: UUID?
     var date: Date
@@ -60,9 +62,9 @@ enum AIError: LocalizedError {
     case notConfigured, invalidResponse(String), requestFailed(Int), tooLarge, noAudio
     var errorDescription: String? {
         switch self {
-        case .notConfigured: "U Postavkama unesite HTTPS adresu svojeg AI poslužitelja i pristupni token. Snimanje i lokalna memorija rade bez toga."
+        case .notConfigured: "U Postavkama uvezite lokalne Whisper i Qwen modele. Obrada ne koristi internet."
         case .invalidResponse(let message): message
-        case .requestFailed(let code): "Poslužitelj nije dovršio obradu (HTTP \(code)). Izvorni podaci su sačuvani. Pokušajte ponovno kasnije."
+        case .requestFailed(let code): "Lokalna obrada nije dovršena (oznaka \(code)). Izvorni podaci su sačuvani. Pokušajte ponovno kasnije."
         case .tooLarge: "Dio snimke ili zahtjev prelazi dopuštenu veličinu. Izvorna snimka ostaje sačuvana."
         case .noAudio: "Za ovu snimku nema dostupnog zvučnog zapisa. Transkript i memorija ostaju dostupni."
         }

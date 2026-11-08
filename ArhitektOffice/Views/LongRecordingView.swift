@@ -82,9 +82,9 @@ struct LongRecordingView: View {
                         }
                     }
                 }
-                Section("Privatnost i obrada") {
+                Section("Potpuno lokalna obrada") {
                     Label("Snimanje ne šalje zvuk na internet.", systemImage: "lock.shield")
-                    Text("Nakon završetka otvorite snimku, pregledajte je i izričito dopustite cloud obradu ako želite transkripciju i AI analizu. Za njih je potreban konfiguriran backend i internet. Izvorni audio ostaje sačuvan čak i ako obrada ne uspije.")
+                    Text("Nakon završetka otvorite snimku i pokrenite transkripciju ili AI analizu na ovom iPhoneu. Potrebne modele uvezite iz Datoteka u Postavkama. Nakon uvoza snimanje, transkripcija i analiza rade bez interneta. Audio i tekst ne šalju se vanjskim servisima; izvorna snimka ostaje sačuvana nakon pogreške.")
                         .font(.footnote).foregroundStyle(.secondary)
                 }
             }

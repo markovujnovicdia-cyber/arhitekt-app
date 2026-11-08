@@ -1,34 +1,63 @@
-# Ručne provjere na iPhoneu
+# Provjera potpuno lokalnog Arhitekt Officea na iPhoneu16Pro
 
-Ovo je kontrolni popis za izvršavanje, a ne tvrdnja da su provjere provedene.
+Ovo je protokol za izvršavanje, ne popis već provedenih mjerenja. Stvarno provedeni testovi navedeni su u REZULTATI.md i Native/TEST-RESULTS.md.
 
-1. **Prvi start:** otvorite aplikaciju na iOS-u 17+. Baza je prazna; nema demo podataka. Uključite Dark Mode i veći tekst. Provjerite da su kartice i mikrofon dostupni.
-2. **Projekt:** dodajte „Kuća Cerje”, broj „2026-01”, investitora, lokaciju, vrstu i datum. Uredite podatke, pronađite ga pretraživanjem. Promijenite fazu dvaput i provjerite datiranu povijest. Arhivirajte i ponovno aktivirajte projekt.
-3. **Zadaci:** dodajte zadatak s rokom i visokim prioritetom. Provjerite filtre po projektu, roku, prioritetu i statusu. Označite izvršenim i provjerite broj otvorenih zadataka na projektu. Uredite i izbrišite zadatak uz potvrdu.
-4. **Problemi:** dodajte problem, promijenite ga u riješen i unesite opis rješenja. Provjerite broj neriješenih problema, filter statusa i prikaz rješenja pri ponovnom uređivanju.
-5. **Bilješke:** dodajte i uredite bilješku, potražite po tekstu i projektu, izbrišite uz potvrdu. Provjerite datum/vrijeme i kronološki redoslijed.
-6. **Diktat:** „Kuća Cerje. Danas sam razgovarao s investitorom. Geodet će poslati podlogu u petak. Trebam nazvati statičara. Problem je što još nemamo vlasnički list.” Zahtijevajte pregled prepoznatog teksta, prijedlog projekta, bilješke, zadatak i problem. Ispravite kategoriju i tekst, promijenite projekt i spremite. Provjerite izvornu verziju diktata. Odustajanje ne smije spremiti podatke.
-7. **Dopuštenja:** odbijte mikrofon, zatim govor (na svježoj instalaciji ili resetiranim dopuštenjima). Aplikacija mora objasniti problem i dopustiti tipkanje. Vratite dopuštenja u sistemskim Postavkama i pokušajte ponovno.
-8. **Offline:** s uključenim zrakoplovnim načinom provjerite CRUD i parser. Diktiranje provjerite samo ako `hr-HR` na uređaju podržava lokalno prepoznavanje. Ako ne podržava, odbijte Apple mrežni način i koristite ručni unos; aplikacija ne smije započeti snimanje bez pristanka.
-9. **Prekidi:** tijekom diktiranja zaključajte iPhone, pošaljite aplikaciju u pozadinu ili primite poziv. Započnite novu sesiju poslije prekida; mikrofon ne smije ostati aktivan, a postojeći tekst mora biti dostupan. Ponovite početak/zaustavljanje nekoliko puta.
-10. **Trajnost:** zatvorite aplikaciju iz multitaskinga, ponovno otvorite; zatim ponovno pokrenite iPhone. Svi potvrđeni podaci i odnosi moraju ostati sačuvani.
-11. **Kopije:** izvezite JSON. Uvezite ga u praznu instalaciju/drugi testni uređaj i usporedite sva polja, arhivu, povijest, rokove, prioritete, rješenja i izvorni diktat. Ponovite uvoz: nema duplikata. Uvezite stariju kopiju i provjerite dokumentirano obnavljanje istih UUID-ova.
-12. **Nevaljane kopije:** pokušajte učitati oštećen JSON, pogrešnu verziju, prazni naziv, nevaljan enum, ponovljeni UUID i >20 MB datoteku. Odbijanje ne smije izmijeniti postojeću bazu. Otkazivanje birača datoteke ne smije izgubiti podatke.
+## Priprema
 
-Automatski testovi nad trajnim spremnikom koriste privremeni direktorij i ne diraju stvarnu bazu aplikacije. Speech dopuštenja, podrška za jezik i fizički mikrofon trebaju stvarni uređaj i ručno testiranje.
+- Napravite prenosivu lokalnu kopiju postojećih podataka. Ugradite oba zaključana native XCFrameworka i instalirajte aplikaciju iz Xcodea na pravi iPhone16Pro. Simulator ne dokazuje A18Pro performanse.
+- Lokalno uvezite višejezični Whisper small i Qwen3-1.7B Q4_K_M, uz usporedbu pouzdanog SHA-256. Provjerite odbijanje `.en`, drugog GGUF modela, oštećene datoteke i pogrešnog checksuma; prethodni valjani model mora ostati.
+- Omogućite mikrofon. Uključite zrakoplovni način rada i isključite Wi-Fi. Nemojte unositi ni konfigurirati backend/API ključ: takav ekran ne postoji.
+- Koristite vlastite lokalne hrvatske snimke/transkripte. Nije potrebno slati poslovni sadržaj u chat ili na server. Sintetički testni tekstovi u repozitoriju nisu označeni kao stvarni razgovori.
 
-## Dodatne provjere verzije 2.0
+## Dugo snimanje i prekidi
 
-- Prije nadogradnje sačuvajte bazu verzije1. Otvorite istu bazu u v2; postojeći projekti, odnosi, datumi i bilješke moraju ostati dostupni.
-- Snimite najmanje20 minuta, uključujući hrvatske nazive, osobe, rokove, pretpostavke i nekoliko projekata. Pauzirajte pa nastavite; preslušajte prije i poslije pauze. Zaključajte zaslon5min pa otključajte. Provjerite završni CAF i ukupno trajanje.
-- Snimajte offline, završite, zatvorite aplikaciju i ponovno je otvorite. Tek poslije mrežne dostupnosti i privole transkribirajte. Usporedite cijeli tekst s audio zapisom, posebice granice60s AAC dijelova. Ne očekujte vremenske oznake pojedine riječi u ovoj verziji.
-- Prekinite proces tijekom snimanja. Nakon otvaranja mora se pojaviti oporavljena snimka, uz upozorenje. Provjerite čitljivost parcijalnog CAF-a; ako nije čitljiv, datoteka se ne smije izbrisati. Hardverski gubitak zadnjih nezapisanih buffera nije moguće isključiti.
-- Provjerite poziv, Bluetooth odspajanje, odbijeno dopuštenje, nedostatak slobodnog prostora i otkazivanje pripreme. Snimanje se ne smije automatski nastaviti bez korisnikova znanja poslije prekida.
-- Simulirajte pogrešan backend token, HTTP429/500, nestanak interneta i timeout na srednjem dijelu. Uspješni dijelovi ostaju, izvorni master ne nestaje. Ponovni pokušaj nastavlja od neuspjelog dijela. Kod praznog prijepisa dijela aplikacija traži pregled/retry ili ručni transkript.
-- Ispravite transkript i spremite novu verziju. Stara verzija i svi citati na nju ostaju nepromijenjeni. Ponovite transkripciju; stare ispravke se ne prepisuju.
-- Prije analize uklonite neke projekte i kontekst iz pregleda slanja. Poslati smije samo označene zapise i cijeli odabrani transkript. Odbijanje privole ne radi mrežni zahtjev.
-- U AI nacrtu promijenite projekt, vrstu, izvjesnost, osobu i rok; odznačite stavku. Samo označene potvrđene stavke ulaze u memoriju. Ponovite istu potvrdu: nema jednakih zapisa ponovno. Pregledajte točan citat i izvornu verziju.
-- Iz novog diktata zabilježite promjenu odluke i povežite prethodnu odluku. Stari zapis ostaje u kronologiji. Upit o razvoju dogovora mora moći citirati oba izvora.
-- Postavite pitanja iz specifikacije. Pregledajte dohvaćene izvore prije slanja, provjerite datume i poveznice. Kod nepovezanog pitanja mora jasno reći da podaci nedostaju, bez dopunjavanja općim znanjem.
-- Izvezite `.officebackup`, prenesite u drugu testnu instalaciju i provjerite reprodukciju, sve verzije, memoriju i izvore. Ponovljeni uvoz ne prepisuje različitu audio datoteku. Pokušajte nevaljan paket, putanju `../`, simboličku vezu i sukob sadržaja; postojeće datoteke/baza ostaju sačuvane.
-- Obrišite samo zvuk. Tekstovi, povijest i memorija ostaju; transkripcija zvuka više se ne nudi kao dostupna. JSON kopija bez audio datoteka mora biti jasno označena.
+1. Snimite odvojene sesije5,10,20 i30minuta. Uključite nazive projekata, vlastita imena, jasne i relativne rokove, odluke, planove i negacije. Preslušajte master i provjerite ukupno trajanje.
+2. Pauzirajte i nastavite barem triput; preslušajte obje strane granice. Zaključajte iPhone5minuta tijekom snimanja i provjerite nastavak. Aplikacija ne smije automatski poslati ništa na mrežu.
+3. Zasebno, bez zrakoplovnog načina, primite poziv ili odspojite Bluetooth mikrofon. Snimanje treba pauzirati uz poruku; nastavak je ručan. Ne očekujte snimku zvuka telefonskog poziva.
+4. Prisilno zatvorite aplikaciju tijekom probnog snimanja, otvorite i provjerite oporavak iz dnevnika. Sačuvajte i nečitljivu djelomičnu datoteku. Izvorni PCM može sadržavati sve napisane okvire, ali zadnji hardverski buffer nije zajamčen nakon gašenja.
+5. Odbijte mikrofon na svježoj instalaciji, zatim ga omogućite u Postavkama i ponovite. Isprobajte slabu raspoloživost prostora na testnom uređaju; pogreška ne smije zamijeniti staru snimku ili model.
+
+## Lokalni Whisper i nastavak
+
+1. U zrakoplovnom načinu pokrenite transkripciju. Provjerite napredak prozora, izvorni master i cjelovit konačni tekst.
+2. Usporedite izgovoreno s tekstom na granicama svakog prozora. Stvarna ponavljanja ne smiju biti leksički izbrisana; prijelazne ponovljene riječi možete ručno ispraviti.
+3. Prekinite nakon nekoliko dovršenih prozora, zatvorite i otvorite aplikaciju. „Nastavi” mora koristiti dovršene prozore iz dnevnika, bez ponavljanja početka. „Ponovno obradi” je odvojena namjerna radnja.
+4. Promijenite model ili izvornu testnu snimku. Stari dnevnik ne smije biti primijenjen na drugi izvor/model. Prethodne verzije transkripta ostaju.
+5. Ispravite dio transkripta i spremite novu reviziju. Citati ranijih potvrđenih informacija i dalje moraju otvoriti točan stari tekst.
+6. Provjerite duži tihi dio: lokalni Whisper može vratiti prazno za tišinu; svaki izvorni prozor ipak ostaje pokriven. Ni tišina ni pogreška ne brišu master.
+
+## Lokalni Qwen i kvaliteta značenja
+
+1. Za svaku stvarnu snimku lokalno pripremite kontrolni popis važnih informacija prije analize: dogovor, odluka, otvoreno pitanje, osoba, zadatak, problem, promjena, rok, neizvjesnost. Usporedite prijedloge s tim popisom, ne samo s duljinom sažetka.
+2. Analizirajte cijeli dugi tekst. Prekinite na sredini i nastavite s istim modelom/kontekstom; dovršeni validirani fragmenti moraju ostati u dnevniku. Promjena konteksta/modela stvara zaseban fingerprint.
+3. Provjerite svaki doslovni citat i UTF-16 raspon, uključujući hrvatske znakove i emoji. Nejasan projekt traži ručni odabir. Izmišljeni ili dvosmisleni citat odbija se.
+4. „Možda ćemo smanjiti garažu” ne smije postati potvrđena odluka. „U petak” bez dovoljno datuma ne smije sam stvoriti kalendarski rok. Osoba mora biti doslovno imenovana u dokazu. Lokalni nacrti počinju kao provizorni/neizvjesni.
+5. Pregledajte i uredite vrstu, tekst, osobu, pouzdanost i rok. Samo označene potvrđene stavke spremaju se. Ponovite istu potvrdu i provjerite da nema identičnih zapisa ponovno.
+6. Dodajte novu promjenu ranijeg dogovora i povežite je s prethodnom odlukom. Stari zapis mora ostati u kronologiji.
+7. Ako odgovor dosegne granicu tokena ili krši JSON/shema/citat pravila, nema parcijalnih „potvrđenih” zaključaka. Izvor i raniji nacrti ostaju.
+
+U rezultatima razlikujte ispravno izdvojene, propuštene i izmišljene tvrdnje. Sačuvan izvorni tekst ne dokazuje da je model razumio svaki detalj. Nije zadana izmišljena postotna točnost za hrvatski.
+
+## FTS5 i razgovor
+
+- Potražite pojam koji se pojavljuje tek pri kraju dugog transkripta. Poveznica mora voditi na original s odgovarajućim izvatkom i datumom.
+- Provjerite Cerje/Cerju, garaža/garaže i tekst bez dijakritike. Prefiksi pomažu, ali nisu cjelovit morfološki ili embeddings model.
+- Pitanja: „Što sam dogovorio s investitorom?”, „Koje probleme još nisam riješio?”, „Što se promijenilo?”, „Koje zadatke moram napraviti ovaj tjedan?”. Provjerite status stvarnih zadataka/problema i rokove, a ne stare tvrdnje iz izvornog transkripta.
+- Pronađite i pregledajte lokalni kontekst, zatim tražite lokalni odgovor. Svaki ID izvora mora postojati i otvoriti izvor. Upit bez relevantnih podataka mora jasno reći da podaci nedostaju; nema mrežnog dopunjavanja.
+- Uredite zapis, zatvorite problem ili uvezite stariju kopiju. Ponovite pretraživanje; indeks mora odražavati autoritativno stanje, bez zastarjelih rezultata.
+
+## Memorija, temperatura i metrike
+
+- Provjerite da dva velika modela ne mogu istodobno raditi. Uvoz/brisanje aktivnog modela onemogućeno je. Poslije svakog native poziva kontekst i težine se oslobađaju.
+- U Mjerenjima zabilježite model/SHA, iOS verziju, trajanje zvuka, trajanje obrade, opaženi vrh RAM-a, stvarne LLM tokene/s i stanje temperature prije/poslije. Whisper nema LLM tokene/s.
+- Upozorenje memorije i ozbiljno/kritično toplinsko stanje trebaju zaustaviti AI. Odlazak AI obrade u pozadinu treba prekinuti native rad i omogućiti nastavak; audio snimanje je odvojen tijek.
+- Ponovite istu hrvatsku snimku sa small i optional medium te usporedite kvalitetu, vrijeme i opaženi RAM. Zabilježite i učitavanje modela; generationSeconds isključuje load/free, ukupno vrijeme ih uključuje.
+- Sto-milisekundno uzorkovanje memorije daje opaženi vrh, ne dokaz apsolutnog maksimuma. iOS jetsam i hardverski prekid nije moguće u potpunosti spriječiti softverskim pragom.
+
+## Pohrana i kopije
+
+- Prije nadogradnje otvorite bazu ranije verzije s kopijom. Projekti, zadaci, faze, izvori i datumi moraju ostati sačuvani. Ne uključuje se CloudKit ili automatski mrežni backup aplikacijskog spremnika.
+- Izvezite `.officebackup` na lokalno odredište, prenesite kabelom/AirDropom u drugu testnu instalaciju i obnovite. Provjerite master, sve revizije, lokalne prozore koji dijele master, checkpoint tekst, povijest i dokaze.
+- Obrišite samo zvuk nakon prekida transkripcije. Sačuvani tekst kontrolne točke, prethodni transkripti i memorija moraju ostati. Potpuni paket mora zadržati i checkpoint-only sesiju.
+- Ponovite uvoz, pokušajte različit sadržaj istog puta, nevaljan JSON, nedostajući master, prevelik paket i simboličku poveznicu. Postojeće datoteke i baza ne smiju se slijepo prepisati.
+- Brisanje aplikacije uklanja lokalne podatke i modele. Provjerite ponovno pokretanje iPhonea uz prethodno potvrđene zapise, uključujući podatke nakon ručnih izmjena.

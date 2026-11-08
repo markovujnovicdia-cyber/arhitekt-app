@@ -39,20 +39,38 @@ for paths, refs, builds in [(app_files, app_refs, app_build), (test_files, test_
 assets = add('assets', 'isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ArhitektOffice/Resources/Assets.xcassets; sourceTree = SOURCE_ROOT;')
 info = add('info', 'isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = ArhitektOffice/Resources/Info.plist; sourceTree = SOURCE_ROOT;')
 asset_build = add('assets:build', f'isa = PBXBuildFile; fileRef = {assets};')
+privacy = add('privacy', 'isa = PBXFileReference; lastKnownFileType = text.xml; path = ArhitektOffice/Resources/PrivacyInfo.xcprivacy; sourceTree = SOURCE_ROOT;')
+privacy_build = add('privacy:build', f'isa = PBXBuildFile; fileRef = {privacy};')
+sqlite = add('sqlite', 'isa = PBXFileReference; lastKnownFileType = sourcecode.text-based-dylib-definition; name = libsqlite3.tbd; path = usr/lib/libsqlite3.tbd; sourceTree = SDKROOT;')
+app_frameworks = [add('sqlite:app', f'isa = PBXBuildFile; fileRef = {sqlite};')]
+test_frameworks = [add('sqlite:test', f'isa = PBXBuildFile; fileRef = {sqlite};')]
+framework_refs = [sqlite]
+embed_builds = []
+for engine in ['AOWhisper', 'AOLlama']:
+    path = f'Native/Artifacts/{engine}.xcframework'
+    if (ROOT / path).exists():
+        ref = add('framework:' + engine, f'isa = PBXFileReference; lastKnownFileType = wrapper.xcframework; path = {q(path)}; sourceTree = SOURCE_ROOT;')
+        framework_refs.append(ref)
+        app_frameworks.append(add('framework:link:' + engine, f'isa = PBXBuildFile; fileRef = {ref};'))
+        embed_builds.append(add('framework:embed:' + engine, f'isa = PBXBuildFile; fileRef = {ref}; settings = {{ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy);}};'))
+framework_group = add('group:frameworks', f'isa = PBXGroup; children = {array(framework_refs)}; name = Frameworks; sourceTree = "<group>";')
 app_product = add('product:app', 'isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = ArhitektOffice.app; sourceTree = BUILT_PRODUCTS_DIR;')
 test_product = add('product:test', 'isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ArhitektOfficeTests.xctest; sourceTree = BUILT_PRODUCTS_DIR;')
-app_group = add('group:app', f'isa = PBXGroup; children = {array(app_refs + [assets, info])}; name = ArhitektOffice; sourceTree = "<group>";')
+app_group = add('group:app', f'isa = PBXGroup; children = {array(app_refs + [assets, info, privacy])}; name = ArhitektOffice; sourceTree = "<group>";')
 test_group = add('group:test', f'isa = PBXGroup; children = {array(test_refs)}; name = ArhitektOfficeTests; sourceTree = "<group>";')
 products = add('group:products', f'isa = PBXGroup; children = {array([app_product, test_product])}; name = Products; sourceTree = "<group>";')
-main_group = add('group:main', f'isa = PBXGroup; children = {array([app_group, test_group, products])}; sourceTree = "<group>";')
+main_group = add('group:main', f'isa = PBXGroup; children = {array([app_group, test_group, framework_group, products])}; sourceTree = "<group>";')
 
 def phase(label, kind, files):
     return add(label, f'isa = {kind}; buildActionMask = 2147483647; files = {array(files)}; runOnlyForDeploymentPostprocessing = 0;')
-app_phases = [phase('app:sources', 'PBXSourcesBuildPhase', app_build), phase('app:frameworks', 'PBXFrameworksBuildPhase', []), phase('app:resources', 'PBXResourcesBuildPhase', [asset_build])]
-test_phases = [phase('test:sources', 'PBXSourcesBuildPhase', test_build), phase('test:frameworks', 'PBXFrameworksBuildPhase', []), phase('test:resources', 'PBXResourcesBuildPhase', [])]
+app_phases = [phase('app:sources', 'PBXSourcesBuildPhase', app_build), phase('app:frameworks', 'PBXFrameworksBuildPhase', app_frameworks), phase('app:resources', 'PBXResourcesBuildPhase', [asset_build, privacy_build])]
+test_phases = [phase('test:sources', 'PBXSourcesBuildPhase', test_build), phase('test:frameworks', 'PBXFrameworksBuildPhase', test_frameworks), phase('test:resources', 'PBXResourcesBuildPhase', [])]
+
+if embed_builds:
+    app_phases.append(add('app:embed', f'isa = PBXCopyFilesBuildPhase; buildActionMask = 2147483647; dstPath = ""; dstSubfolderSpec = 10; files = {array(embed_builds)}; name = "Embed Local Engines"; runOnlyForDeploymentPostprocessing = 0;'))
 
 project_common = {'IPHONEOS_DEPLOYMENT_TARGET': '17.0', 'SDKROOT': 'iphoneos', 'SWIFT_VERSION': '5.0', 'CLANG_ENABLE_MODULES': 'YES', 'CLANG_ENABLE_OBJC_ARC': 'YES', 'ENABLE_USER_SCRIPT_SANDBOXING': 'YES', 'GCC_C_LANGUAGE_STANDARD': 'gnu17', 'CLANG_CXX_LANGUAGE_STANDARD': 'gnu++20', 'GCC_WARN_ABOUT_RETURN_TYPE': 'YES_ERROR', 'CLANG_WARN_UNREACHABLE_CODE': 'YES', 'SWIFT_STRICT_CONCURRENCY': 'targeted'}
-app_common = {'PRODUCT_NAME': '$(TARGET_NAME)', 'PRODUCT_BUNDLE_IDENTIFIER': 'com.arhitektoffice.app', 'INFOPLIST_FILE': 'ArhitektOffice/Resources/Info.plist', 'GENERATE_INFOPLIST_FILE': 'NO', 'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon', 'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME': 'AccentColor', 'MARKETING_VERSION': '2.0', 'CURRENT_PROJECT_VERSION': '2', 'TARGETED_DEVICE_FAMILY': '1', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator', 'CODE_SIGN_STYLE': 'Automatic', 'SUPPORTS_MACCATALYST': 'NO', 'LD_RUNPATH_SEARCH_PATHS': '$(inherited) @executable_path/Frameworks'}
+app_common = {'PRODUCT_NAME': '$(TARGET_NAME)', 'PRODUCT_BUNDLE_IDENTIFIER': 'com.arhitektoffice.app', 'INFOPLIST_FILE': 'ArhitektOffice/Resources/Info.plist', 'GENERATE_INFOPLIST_FILE': 'NO', 'ASSETCATALOG_COMPILER_APPICON_NAME': 'AppIcon', 'ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME': 'AccentColor', 'MARKETING_VERSION': '2.0', 'CURRENT_PROJECT_VERSION': '3', 'TARGETED_DEVICE_FAMILY': '1', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator', 'CODE_SIGN_STYLE': 'Automatic', 'SUPPORTS_MACCATALYST': 'NO', 'LD_RUNPATH_SEARCH_PATHS': '$(inherited) @executable_path/Frameworks', 'FRAMEWORK_SEARCH_PATHS': '$(inherited) $(PROJECT_DIR)/Native/Artifacts'}
 test_common = {'PRODUCT_NAME': '$(TARGET_NAME)', 'PRODUCT_BUNDLE_IDENTIFIER': 'com.arhitektoffice.app.tests', 'GENERATE_INFOPLIST_FILE': 'YES', 'TARGETED_DEVICE_FAMILY': '1', 'SUPPORTED_PLATFORMS': 'iphoneos iphonesimulator', 'CODE_SIGN_STYLE': 'Automatic', 'TEST_HOST': '$(BUILT_PRODUCTS_DIR)/ArhitektOffice.app/ArhitektOffice', 'BUNDLE_LOADER': '$(TEST_HOST)', 'LD_RUNPATH_SEARCH_PATHS': '$(inherited) @executable_path/Frameworks @loader_path/Frameworks'}
 
 def configurations(label, common):
@@ -93,4 +111,5 @@ test_reference = f'<BuildableReference BuildableIdentifier="primary" BlueprintId
 <ArchiveAction buildConfiguration="Release" revealArchiveInOrganizer="YES"/>
 </Scheme>
 ''')
+print(f'Local engine frameworks linked: {len(embed_builds)}/2 (build Native artifacts on Mac for inference).')
 print(f'Generated Xcode project: {len(app_files)} app sources, {len(test_files)} test sources.')

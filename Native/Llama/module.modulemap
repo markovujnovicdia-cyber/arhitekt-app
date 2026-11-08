@@ -1,0 +1,4 @@
+framework module AOLlama {
+    umbrella header "AOLlama.h"
+    export *
+}

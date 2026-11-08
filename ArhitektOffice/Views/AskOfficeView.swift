@@ -20,11 +20,12 @@ private struct OfficeAnswerTurn: Identifiable {
     @State private var selectedIDs: Set<UUID> = []
     @State private var turns: [OfficeAnswerTurn] = []
     @State private var source: AIContextRecord?
-    @State private var confirmSend = false
     @State private var isAsking = false
+    @State private var isRetrieving = false
     @State private var message: String?
     @State private var requestTask: Task<Void, Never>?
 
+    private var isWorking: Bool { isAsking || isRetrieving }
     private var trimmedQuestion: String { question.trimmingCharacters(in: .whitespacesAndNewlines) }
     private var retrievalCurrent: Bool { retrievedQuestion == trimmedQuestion && retrievedProjectID == projectID }
     private var selectedContext: [AIContextRecord] { candidates.filter { selectedIDs.contains($0.id) } }
@@ -34,10 +35,10 @@ private struct OfficeAnswerTurn: Identifiable {
             Form {
                 questionSection
                 contextSection
-                if isAsking {
+                if isWorking {
                     Section {
-                        HStack { ProgressView(); Text("Tražim odgovor u odabranim izvorima…") }
-                        Button("Prekini zahtjev", role: .cancel) { requestTask?.cancel() }
+                        HStack { ProgressView(); Text(isRetrieving ? "Pretražujem lokalnu memoriju…" : "Tražim odgovor u odabranim izvorima…") }
+                        Button(isRetrieving ? "Prekini pretraživanje" : "Zaustavi lokalni odgovor", role: .cancel) { requestTask?.cancel() }
                     }
                 }
                 if let message {
@@ -66,12 +67,6 @@ private struct OfficeAnswerTurn: Identifiable {
             .navigationTitle("Pitaj Arhitekt Office")
             .navigationBarTitleDisplayMode(.inline)
             .onDisappear { requestTask?.cancel() }
-            .confirmationDialog("Poslati odabrani kontekst?", isPresented: $confirmSend, titleVisibility: .visible) {
-                Button("Dopuštam slanje pitanja i zapisa") { ask() }
-                Button("Odustani", role: .cancel) {}
-            } message: {
-                Text("Pitanje i \(selectedContext.count) označenih zapisa bit će poslani putem \(AIConfiguration.baseURL?.host ?? "AI poslužitelja iz Postavki") i njegova AI pružatelja. Točan sadržaj dostupan je u pregledu konteksta. Ostali zapisi i zvuk ne šalju se.")
-            }
             .sheet(item: $source) { record in
                 NavigationStack {
                     SourceRecordView(record: record)
@@ -84,19 +79,20 @@ private struct OfficeAnswerTurn: Identifiable {
     private var questionSection: some View {
         Section {
             TextField("Primjer: Što smo posljednje dogovorili oko garaže?", text: $question, axis: .vertical)
-                .lineLimit(3...8).disabled(isAsking)
+                .lineLimit(3...8).disabled(isWorking)
             Picker("Opseg", selection: $projectID) {
                 Text("Svi projekti, uključujući arhivu").tag(Optional<UUID>.none)
                 ForEach(projects) { project in
                     Text(project.name + (project.isArchived ? " · arhiviran" : "")).tag(Optional(project.id))
                 }
-            }.disabled(isAsking)
+            }.disabled(isWorking)
             Button("Pronađi relevantne lokalne zapise", systemImage: "magnifyingglass", action: retrieve)
-                .disabled(trimmedQuestion.isEmpty || isAsking)
+                .disabled(trimmedQuestion.isEmpty || isWorking)
+            NavigationLink("Lokalni model i mjerenja") { LocalModelsView() }.disabled(isWorking)
         } header: {
             Text("Pitanje")
         } footer: {
-            Text("Prvo se pretražuje lokalna baza. Prije svakog AI zahtjeva pregledajte i označite sadržaj za slanje. Bez odabranih izvora aplikacija ne traži odgovor od AI-ja.")
+            Text("Pretraživanje i AI odgovor izvode se na ovom iPhoneu. Odgovor je lokalni AI nacrt koji može pogrešno protumačiti podatke; provjerite citirane izvore. Ako nema dovoljno izvora, aplikacija će to jasno reći. Potreban je uvezen lokalni jezični model.")
         }
     }
 
@@ -107,48 +103,61 @@ private struct OfficeAnswerTurn: Identifiable {
                     VStack(alignment: .leading, spacing: 6) {
                         Toggle(record.title, isOn: Binding(get: { selectedIDs.contains(record.id) }, set: {
                             if $0 { selectedIDs.insert(record.id) } else { selectedIDs.remove(record.id) }
-                        })).disabled(isAsking)
+                        })).disabled(isWorking)
                         Text(record.date, format: .dateTime.day().month().year().hour().minute()).font(.caption).foregroundStyle(.secondary)
-                        DisclosureGroup("Točan tekst za slanje") { Text(record.text).textSelection(.enabled) }
+                        DisclosureGroup("Tekst za lokalni kontekst") { Text(record.text).textSelection(.enabled) }
                     }
                 }
                 if !retrievalCurrent {
-                    Text("Pitanje ili projekt su promijenjeni. Ponovno pronađite relevantne zapise prije slanja.")
+                    Text("Pitanje ili projekt su promijenjeni. Ponovno pronađite relevantne zapise prije analize.")
                         .font(.footnote).foregroundStyle(.orange)
                 }
-                Button("Pregledano — dopuštam AI obradu", systemImage: "paperplane") { confirmSend = true }
-                    .disabled(isAsking || selectedContext.isEmpty || !retrievalCurrent)
+                Button("Odgovori lokalno iz odabranih zapisa", systemImage: "brain.head.profile", action: ask)
+                    .disabled(isWorking || selectedContext.isEmpty || !retrievalCurrent)
             } header: { Text("Pregled konteksta · \(selectedContext.count) odabrano") }
         }
     }
 
     private func retrieve() {
-        do {
-            candidates = try LocalMemorySearch.records(context: context, query: trimmedQuestion, projectID: projectID, limit: 20)
-            selectedIDs = Set(candidates.map(\.id))
-            retrievedQuestion = trimmedQuestion; retrievedProjectID = projectID
-            message = nil
-            if candidates.isEmpty {
-                turns.append(OfficeAnswerTurn(question: trimmedQuestion,
-                    answer: AskResponse(answer: "U lokalnoj bazi nisam pronašao dovoljno relevantnih podataka. Pokušajte navesti naziv projekta ili druge riječi, odnosno prvo dodajte snimku ili bilješku.",
-                                        sourceIDs: [], insufficientData: true), sources: []))
-            }
-        } catch { message = error.localizedDescription }
+        guard !isWorking, !trimmedQuestion.isEmpty else { return }
+        let query = trimmedQuestion
+        let selectedProject = projectID
+        isRetrieving = true
+        message = nil
+        requestTask = Task { @MainActor in
+            defer { isRetrieving = false }
+            do {
+                let records = try await LocalMemorySearch.recordsAsync(context: context, query: query,
+                                                                       projectID: selectedProject, limit: 20)
+                try Task.checkCancellation()
+                candidates = records
+                selectedIDs = Set(records.map(\.id))
+                retrievedQuestion = query
+                retrievedProjectID = selectedProject
+                if records.isEmpty {
+                    turns.append(OfficeAnswerTurn(question: query,
+                        answer: AskResponse(answer: "U lokalnoj bazi nisam pronašao dovoljno relevantnih podataka. Pokušajte navesti naziv projekta ili druge riječi, odnosno prvo dodajte snimku ili bilješku.",
+                                            sourceIDs: [], insufficientData: true), sources: []))
+                }
+            } catch is CancellationError {
+                message = "Pretraživanje je prekinuto. Projektni podaci ostaju sačuvani."
+            } catch { message = error.localizedDescription }
+        }
     }
 
     private func ask() {
-        guard retrievalCurrent, !selectedContext.isEmpty, !isAsking else { return }
-        let sentQuestion = trimmedQuestion
-        let sentContext = selectedContext
+        guard retrievalCurrent, !selectedContext.isEmpty, !isWorking else { return }
+        let askedQuestion = trimmedQuestion
+        let usedContext = selectedContext
         isAsking = true; message = nil
         requestTask = Task { @MainActor in
             defer { isAsking = false }
             do {
-                let result = try await CloudAIClient().ask(question: sentQuestion, context: sentContext)
-                turns.append(OfficeAnswerTurn(question: sentQuestion, answer: result,
-                    sources: sentContext.filter { result.sourceIDs.contains($0.id) }))
+                let result = try await LocalAIClient().ask(question: askedQuestion, context: usedContext)
+                turns.append(OfficeAnswerTurn(question: askedQuestion, answer: result,
+                    sources: usedContext.filter { result.sourceIDs.contains($0.id) }))
             } catch is CancellationError {
-                message = "Zahtjev je prekinut. Lokalni podaci ostaju sačuvani."
+                message = "Lokalna obrada je prekinuta. Projektni podaci ostaju sačuvani."
             } catch { message = error.localizedDescription }
         }
     }

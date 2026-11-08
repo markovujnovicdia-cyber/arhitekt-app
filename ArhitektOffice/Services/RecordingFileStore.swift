@@ -91,6 +91,12 @@ struct RecordingFileStore {
         var result = RecoveryScan(manifests: [], warnings: [])
         for directory in urls {
             guard let id = UUID(uuidString: directory.lastPathComponent) else { continue }
+            let journal = directory.appendingPathComponent("recovery.json")
+            // Explicit audio deletion retains text checkpoints in this folder.
+            // Their absence of a recovery journal is expected, not corruption.
+            if !FileManager.default.fileExists(atPath: journal.path),
+               !FileManager.default.fileExists(atPath: directory.appendingPathComponent("master.caf").path),
+               !FileManager.default.fileExists(atPath: directory.appendingPathComponent("master.m4a").path) { continue }
             do { result.manifests.append(try readManifest(id: id)) }
             catch {
                 result.warnings.append("Dnevnik snimke \(id.uuidString) nije čitljiv. Audio datoteke nisu izbrisane.")
@@ -110,12 +116,54 @@ struct RecordingFileStore {
         try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: url(for: relativePath).path)
     }
 
-    /// Used only after an explicit user request. Failure never clears metadata.
+    /// Used only after an explicit user request. Delete only app-owned audio;
+    /// text checkpoints (even unreadable diagnostic history) and unknown files stay.
     func deleteAudio(id: UUID) throws {
+        let manager = FileManager.default
+        let lexicalDirectory = rootDirectory.appendingPathComponent(id.uuidString, isDirectory: true)
+        guard manager.fileExists(atPath: lexicalDirectory.path) else { return }
+        guard try lexicalDirectory.resourceValues(forKeys: [.isSymbolicLinkKey]).isSymbolicLink != true else {
+            throw StoreError.invalidPath
+        }
         let directory = try url(for: id.uuidString)
-        if FileManager.default.fileExists(atPath: directory.path) { try FileManager.default.removeItem(at: directory) }
+        var removals: [URL] = []
+        for name in ["master.caf", "master.m4a", "recovery.json"] {
+            let candidate = directory.appendingPathComponent(name)
+            if manager.fileExists(atPath: candidate.path),
+               try candidate.resourceValues(forKeys: [.isDirectoryKey]).isDirectory != true { removals.append(candidate) }
+        }
+        for candidate in try manager.contentsOfDirectory(at: directory, includingPropertiesForKeys: [.isDirectoryKey]) {
+            let name = candidate.deletingPathExtension().lastPathComponent
+            if candidate.pathExtension == "m4a", name.hasPrefix("export-"),
+               UUID(uuidString: String(name.dropFirst(7))) != nil,
+               try candidate.resourceValues(forKeys: [.isDirectoryKey]).isDirectory != true { removals.append(candidate) }
+        }
+        let chunks = directory.appendingPathComponent("chunks", isDirectory: true)
+        let chunksExist = manager.fileExists(atPath: chunks.path)
+        var chunksValues: URLResourceValues?
+        if chunksExist { chunksValues = try chunks.resourceValues(forKeys: [.isSymbolicLinkKey, .isDirectoryKey]) }
+        if chunksValues?.isSymbolicLink == true { throw StoreError.invalidPath }
+        let hasChunksDirectory = chunksValues?.isDirectory == true
+        if hasChunksDirectory {
+            for candidate in try manager.contentsOfDirectory(at: chunks, includingPropertiesForKeys: [.isDirectoryKey]) {
+                let name = candidate.deletingPathExtension().lastPathComponent
+                let canonicalChunk = name.count == 6 && name.allSatisfy { $0.isASCII && $0.isNumber }
+                let exportTemporary = name.hasPrefix("export-") && UUID(uuidString: String(name.dropFirst(7))) != nil
+                if candidate.pathExtension == "m4a", canonicalChunk || exportTemporary,
+                   try candidate.resourceValues(forKeys: [.isDirectoryKey]).isDirectory != true { removals.append(candidate) }
+            }
+        }
+        // Known files are removed lexically, so a symlink is unlinked rather than
+        // following it to another recording. Unknown content is never traversed.
+        for candidate in removals { try manager.removeItem(at: candidate) }
+        if hasChunksDirectory, try manager.contentsOfDirectory(atPath: chunks.path).isEmpty {
+            try manager.removeItem(at: chunks)
+        }
+        if try manager.contentsOfDirectory(atPath: directory.path).isEmpty { try manager.removeItem(at: directory) }
     }
 
+    /// Optional local AAC export for compatibility and user backups. Whisper reads
+    /// bounded PCM windows directly from the retained master instead.
     /// Export complete, ordered pieces from a continuous master. The master is
     /// retained. An interrupted export can be retried without affecting it.
     func exportSegments(id: UUID, masterRelativePath: String, maximumDuration: Double = 60) async throws -> [SegmentEntry] {

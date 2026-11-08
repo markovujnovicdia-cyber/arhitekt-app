@@ -11,17 +11,20 @@ import SwiftData
     @ObservedObject private var audio = LongRecordingService.shared
     @State private var selectedTranscriptID: UUID?
     @State private var correcting = false
-    @State private var consentTranscription = false
-    @State private var consentAnalysis = false
+    @State private var reviewAnalysisContext = false
     @State private var confirmDeleteAudio = false
     @State private var reviewAnalysis: AnalysisResponse?
+    @State private var reviewSource: TranscriptVersion?
     @State private var reviewing = false
     @State private var candidateContext: [AIContextRecord] = []
     @State private var selectedContextIDs: Set<UUID> = []
     @State private var selectedProjectIDs: Set<UUID> = []
     @State private var message: String?
     @State private var operation: Task<Void, Never>?
+    @State private var preparingAnalysis = false
+    @State private var analysisSource: TranscriptVersion?
 
+    private var isBusy: Bool { processor.isProcessing || preparingAnalysis }
     private var transcript: TranscriptVersion? {
         recording.transcripts.first { $0.id == selectedTranscriptID } ?? recording.transcripts.last
     }
@@ -33,7 +36,6 @@ import SwiftData
         recording.stateRaw != "audioDeleted" &&
         (recording.masterRelativePath != nil || recording.segments.contains { $0.stateRaw != "audioDeleted" })
     }
-    private var backendName: String { AIConfiguration.baseURL?.host ?? "AI poslužitelj iz Postavki" }
 
     var body: some View {
         Form {
@@ -44,7 +46,7 @@ import SwiftData
                 Picker("Projekt snimke", selection: Binding(get: { recording.project?.id }, set: assignProject)) {
                     Text("Projekt nije odabran").tag(Optional<UUID>.none)
                     ForEach(projects) { Text($0.name).tag(Optional($0.id)) }
-                }.disabled(processor.isProcessing || isActive)
+                }.disabled(isBusy || isActive)
                 if let error = recording.lastError { Text(error).foregroundStyle(.orange) }
                 if hasAudio {
                     Button(audio.playingSessionID == recording.id ? "Zaustavi reprodukciju" : "Preslušaj snimku",
@@ -53,7 +55,7 @@ import SwiftData
                             if audio.playingSessionID == recording.id { audio.stopPlayback() }
                             else { try audio.play(recording) }
                         } catch { message = error.localizedDescription }
-                    }.disabled(isActive)
+                    }.disabled(isActive || isBusy)
                 } else {
                     Text("Zvuk nije dostupan. Transkripti i potvrđena memorija ostaju dostupni.")
                         .font(.footnote).foregroundStyle(.secondary)
@@ -63,14 +65,14 @@ import SwiftData
             if let transcript { transcriptSection(transcript) }
             else {
                 Section("Transkript") {
-                    Text("Još nema transkripta. Snimku možete poslati na obradu kasnije ili ručno unijeti tekst.")
-                    Button("Ručno unesi cjeloviti transkript") { correcting = true }
+                    Text("Još nema transkripta. Snimku možete obraditi na ovom iPhoneu kasnije ili ručno unijeti tekst.")
+                    Button("Ručno unesi cjeloviti transkript") { correcting = true }.disabled(isBusy)
                 }
             }
             if hasAudio {
                 Section {
                     Button("Obriši lokalni zvučni zapis", role: .destructive) { confirmDeleteAudio = true }
-                        .disabled(isActive || processor.isProcessing)
+                        .disabled(isActive || isBusy)
                 } footer: { Text("Brisanje zvuka ne briše transkripte, izvore ni potvrđenu memoriju.") }
             }
         }
@@ -79,7 +81,7 @@ import SwiftData
         .toolbar {
             if showsCloseButton {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Gotovo") { dismiss() }.disabled(processor.isProcessing)
+                    Button("Gotovo") { dismiss() }.disabled(isBusy)
                 }
             }
         }
@@ -92,15 +94,9 @@ import SwiftData
         .sheet(isPresented: $correcting) {
             TranscriptCorrectionView(recording: recording, initialText: transcript?.text ?? "")
         }
-        .sheet(isPresented: $consentAnalysis) { analysisConsentView }
+        .sheet(isPresented: $reviewAnalysisContext) { analysisContextView }
         .sheet(isPresented: $reviewing) {
-            if let transcript, let reviewAnalysis { MemoryReviewView(transcript: transcript, analysis: reviewAnalysis) }
-        }
-        .confirmationDialog("Poslati zvuk na transkripciju?", isPresented: $consentTranscription, titleVisibility: .visible) {
-            Button("Dopuštam slanje zvuka") { transcribe() }
-            Button("Odustani", role: .cancel) {}
-        } message: {
-            Text("Snimka „\(recording.title)” (\(Int(recording.duration / 60)) min) bit će obrađena u poredanim dijelovima putem \(backendName) i njegova pružatelja transkripcije. Poslat će se zvuk ove snimke. Neuspjeh ne briše zvuk ni prethodne verzije transkripta.")
+            if let reviewSource, let reviewAnalysis { MemoryReviewView(transcript: reviewSource, analysis: reviewAnalysis) }
         }
         .confirmationDialog("Trajno obrisati lokalni zvuk?", isPresented: $confirmDeleteAudio, titleVisibility: .visible) {
             Button("Obriši zvuk", role: .destructive) {
@@ -112,17 +108,26 @@ import SwiftData
         .alert("Arhitekt Office", isPresented: Binding(get: { message != nil }, set: { if !$0 { message = nil } })) {
             Button("U redu") { message = nil }
         } message: { Text(message ?? "") }
-        .interactiveDismissDisabled(processor.isProcessing)
+        .interactiveDismissDisabled(isBusy)
     }
 
     private var transcriptionSection: some View {
         Section {
-            Button(recording.transcripts.isEmpty ? "Transkribiraj spremljenu snimku" : "Ponovno obradi zvučni zapis",
-                   systemImage: "text.bubble") { consentTranscription = true }
-                .disabled(!hasAudio || isActive || processor.isProcessing)
-            if processor.isProcessing {
-                ProgressView(value: processor.progress)
-                Text(processor.statusMessage).font(.footnote)
+            Button(recording.transcripts.isEmpty ? "Transkribiraj snimku na iPhoneu" : "Nastavi transkripciju iz spremljenih dijelova",
+                   systemImage: "text.bubble") { transcribe(force: false) }
+                .disabled(!hasAudio || isActive || isBusy)
+            if !recording.transcripts.isEmpty || recording.segments.contains(where: { $0.stateRaw.hasSuffix("completed") }) {
+                Button("Ponovno transkribiraj sve dijelove", systemImage: "arrow.clockwise") { transcribe(force: true) }
+                    .disabled(!hasAudio || isActive || isBusy)
+            }
+            NavigationLink("Lokalni modeli i mjerenja") { LocalModelsView() }.disabled(isBusy)
+            if isBusy {
+                if preparingAnalysis {
+                    HStack { ProgressView(); Text("Pripremam lokalni kontekst…") }
+                } else {
+                    ProgressView(value: processor.progress)
+                    Text(processor.statusMessage).font(.footnote)
+                }
                 Button("Prekini obradu", role: .cancel) { operation?.cancel() }
             }
             if let error = processor.errorMessage {
@@ -131,9 +136,9 @@ import SwiftData
                     .font(.footnote)
             }
         } header: {
-            Text("Cloud obrada uz privolu")
+            Text("Lokalna obrada na iPhoneu")
         } footer: {
-            Text("Snimanje i čuvanje rade bez interneta. Transkripcija i AI analiza zahtijevaju podešen poslužitelj i mrežu.")
+            Text("Transkripcija i analiza izvode se na uređaju pomoću uvezenih modela. Odabrani dijelovi i prethodne verzije ostaju sačuvani nakon prekida; obradu možete nastaviti kasnije.")
         }
     }
 
@@ -141,16 +146,16 @@ import SwiftData
         Section {
             Picker("Verzija", selection: Binding(get: { transcript?.id }, set: { selectedTranscriptID = $0 })) {
                 ForEach(recording.transcripts.reversed()) { value in
-                    Text("Verzija \(value.revision) · \(value.provider)").tag(Optional(value.id))
+                    Text("Verzija \(value.revision) · \(providerLabel(value.provider))").tag(Optional(value.id))
                 }
-            }.disabled(processor.isProcessing)
+            }.disabled(isBusy)
             Text(version.createdAt, format: .dateTime.day().month().year().hour().minute()).font(.caption).foregroundStyle(.secondary)
             Text(version.text).textSelection(.enabled)
-            Button("Ispravi tekst kao novu verziju") { correcting = true }.disabled(processor.isProcessing)
+            Button("Ispravi tekst kao novu verziju") { correcting = true }.disabled(isBusy)
             Button("Analiziraj cijeli transkript", systemImage: "sparkles") { prepareAnalysis() }
-                .disabled(processor.isProcessing || version.text.isEmpty)
+                .disabled(isBusy || version.text.isEmpty)
             if version.analysisJSON != nil {
-                Button("Pregledaj spremljene AI prijedloge") { openSavedAnalysis(version) }.disabled(processor.isProcessing)
+                Button("Pregledaj spremljene AI prijedloge") { openSavedAnalysis(version) }.disabled(isBusy)
             }
             if let summary = version.analysisSummary {
                 DisclosureGroup("AI sažetak za provjeru") { Text(summary).textSelection(.enabled) }
@@ -163,17 +168,18 @@ import SwiftData
         }
     }
 
-    private var analysisConsentView: some View {
+    private var analysisContextView: some View {
         NavigationStack {
             Form {
                 Section {
-                    Text("Slanjem dopuštate obradu putem \(backendName) i njegova AI pružatelja. Poslat će se cjeloviti odabrani transkript, nazivi i brojevi označenih projekata te samo označeni prethodni zapisi.")
-                    if let transcript { DisclosureGroup("Cjeloviti transkript koji se šalje") { Text(transcript.text).textSelection(.enabled) } }
+                    Text("Lokalni model analizira odabrani transkript i označene prethodne zapise. Označite projekte koje treba prepoznati. Obrada se izvodi na ovom iPhoneu; prijedloge ćete pregledati prije spremanja.")
+                    if let analysisSource { DisclosureGroup("Cjeloviti transkript za analizu") { Text(analysisSource.text).textSelection(.enabled) } }
                 }
-                Section("Projekti za prepoznavanje") {
+                Section("Projekti za prepoznavanje · \(selectedProjectIDs.count)/40") {
                     ForEach(projects) { project in
                         Toggle(project.name + (project.number.isEmpty ? "" : " · " + project.number),
                                isOn: selectionBinding(project.id, in: $selectedProjectIDs))
+                            .disabled(selectedProjectIDs.count >= 40 && !selectedProjectIDs.contains(project.id))
                     }
                 }
                 Section("Prethodni lokalni zapisi") {
@@ -182,16 +188,16 @@ import SwiftData
                         VStack(alignment: .leading) {
                             Toggle(record.title, isOn: selectionBinding(record.id, in: $selectedContextIDs))
                             Text(record.date, format: .dateTime.day().month().year().hour().minute()).font(.caption)
-                            DisclosureGroup("Točan tekst koji se šalje") { Text(record.text).textSelection(.enabled) }
+                            DisclosureGroup("Tekst za lokalni kontekst") { Text(record.text).textSelection(.enabled) }
                         }
                     }
                 }
             }
-            .navigationTitle("Pregled slanja AI-ju")
+            .navigationTitle("Kontekst lokalne analize")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .cancellationAction) { Button("Odustani") { consentAnalysis = false } }
-                ToolbarItem(placement: .confirmationAction) { Button("Dopuštam i šaljem") { consentAnalysis = false; analyze() } }
+                ToolbarItem(placement: .cancellationAction) { Button("Odustani") { reviewAnalysisContext = false } }
+                ToolbarItem(placement: .confirmationAction) { Button("Pokreni analizu") { reviewAnalysisContext = false; analyze() } }
             }
         }
     }
@@ -202,34 +208,63 @@ import SwiftData
         })
     }
 
+    private func providerLabel(_ provider: String) -> String {
+        if provider == "ručno" { return "Ručni unos" }
+        if provider.hasPrefix("whisper-") {
+            let suffix = String(provider.dropFirst("whisper-".count))
+            let components = suffix.split(separator: "-", maxSplits: 1)
+            if let rawKind = components.first, let kind = LocalModelKind(rawValue: String(rawKind)),
+               kind == .whisperSmall || kind == .whisperMedium { return kind.title }
+            // Historical versions may contain only the model fingerprint.
+            return LocalModelStore.shared.manifests.first { suffix.hasSuffix($0.sha256) }?.kind.title ?? "Lokalni Whisper"
+        }
+        return provider
+    }
+
     private func assignProject(_ id: UUID?) {
         recording.project = projects.first { $0.id == id }
         recording.updatedAt = Date()
         do { try context.save() } catch { context.rollback(); message = error.localizedDescription }
     }
-    private func transcribe() {
-        let force = !recording.transcripts.isEmpty
+    private func transcribe(force: Bool) {
+        guard !isBusy else { return }
         operation = Task { await processor.transcribe(recording: recording, context: context, force: force) }
     }
     private func prepareAnalysis() {
-        guard let transcript else { return }
-        do {
-            candidateContext = try LocalMemorySearch.records(context: context, query: transcript.text,
-                                                              projectID: recording.project?.id, limit: 12)
-                .filter { $0.id != transcript.id }
-            selectedContextIDs = Set(candidateContext.map(\.id))
-            selectedProjectIDs = Set(projects.filter { !$0.isArchived || $0.id == recording.project?.id }.map(\.id))
-            consentAnalysis = true
-        } catch { message = error.localizedDescription }
+        guard !isBusy, let source = transcript else { return }
+        let sourceID = source.id
+        let query = source.text
+        let projectID = recording.project?.id
+        let projectDefaults: Set<UUID>
+        if let projectID { projectDefaults = [projectID] }
+        else { projectDefaults = Set(projects.filter { !$0.isArchived }.prefix(20).map(\.id)) }
+        preparingAnalysis = true
+        operation = Task { @MainActor in
+            defer { preparingAnalysis = false }
+            do {
+                let records = try await LocalMemorySearch.recordsAsync(context: context, query: query,
+                                                                       projectID: projectID, limit: 12)
+                try Task.checkCancellation()
+                guard transcript?.id == sourceID else { return }
+                candidateContext = records.filter { $0.id != sourceID }
+                selectedContextIDs = Set(candidateContext.map(\.id))
+                selectedProjectIDs = projectDefaults
+                analysisSource = source
+                reviewAnalysisContext = true
+            } catch is CancellationError {
+                message = "Priprema konteksta je prekinuta. Izvorni zapisi ostaju sačuvani."
+            } catch { message = error.localizedDescription }
+        }
     }
+
     private func analyze() {
-        guard let transcript else { return }
+        guard !isBusy, let transcript = analysisSource else { return }
         let chosenProjects = projects.filter { selectedProjectIDs.contains($0.id) }
         let chosenContext = candidateContext.filter { selectedContextIDs.contains($0.id) }
         operation = Task {
             if let result = await processor.analyze(transcript: transcript, projects: chosenProjects,
                                                      context: chosenContext, modelContext: context) {
-                reviewAnalysis = result; reviewing = true
+                reviewSource = transcript; reviewAnalysis = result; reviewing = true
             }
         }
     }
@@ -237,6 +272,7 @@ import SwiftData
         do {
             guard let data = version.analysisJSON?.data(using: .utf8) else { return }
             reviewAnalysis = try JSONDecoder().decode(AnalysisResponse.self, from: data)
+            reviewSource = version
             reviewing = true
         } catch { message = "AI nacrt nije moguće pročitati. Izvorni transkript ostaje dostupan. " + error.localizedDescription }
     }

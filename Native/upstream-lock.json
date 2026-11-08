@@ -1,0 +1,12 @@
+{
+  "whisper": {
+    "repository": "https://github.com/ggml-org/whisper.cpp.git",
+    "commit": "f92e1e4d1056700c39d4e86c1140f0a088fe1ab6",
+    "license": "MIT"
+  },
+  "llama": {
+    "repository": "https://github.com/ggml-org/llama.cpp.git",
+    "commit": "372dc5ca157276beb6c67b2e92477e8d662e964a",
+    "license": "MIT"
+  }
+}

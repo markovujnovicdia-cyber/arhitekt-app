@@ -1,5 +1,6 @@
 import SwiftUI
 import SwiftData
+import Security
 
 @main
 @MainActor
@@ -15,6 +16,13 @@ struct ArhitektOfficeApp: App {
             try FileManager.default.createDirectory(at: support, withIntermediateDirectories: true,
                 attributes: [.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication])
             try FileManager.default.setAttributes([.protectionKey: FileProtectionType.completeUntilFirstUserAuthentication], ofItemAtPath: support.path)
+            var excludedSupport = support
+            var values = URLResourceValues(); values.isExcludedFromBackup = true
+            try excludedSupport.setResourceValues(values)
+            // Remove previously stored backend access without reading credentials.
+            SecItemDelete([kSecClass as String: kSecClassGenericPassword,
+                           kSecAttrService as String: "com.arhitektoffice.backend-access"] as CFDictionary)
+            UserDefaults.standard.removeObject(forKey: "office.ai.backendURL")
             let schema = Schema([Project.self, ProjectTask.self, ProjectIssue.self,
                                  ProjectNote.self, PhaseChange.self, RecordingSession.self,
                                  AudioSegment.self, TranscriptVersion.self, MemoryEntry.self])

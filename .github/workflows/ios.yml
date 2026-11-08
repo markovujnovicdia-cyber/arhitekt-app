@@ -6,9 +6,13 @@ on:
 jobs:
   ios:
     runs-on: macos-15
-    timeout-minutes: 25
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
+      - name: Check native build tools
+        run: cmake --version
+      - name: Build pinned offline engines
+        run: tools/build-local-engines.sh --platform ios --jobs 3
       - name: Select available iPhone simulator
         run: |
           xcodebuild -version

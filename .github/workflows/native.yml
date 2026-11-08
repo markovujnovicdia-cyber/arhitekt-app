@@ -1,0 +1,15 @@
+name: Offline native and search tests
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+jobs:
+  native:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test actual SQLite FTS5 schema
+        run: python3 tools/test_fts_index.py
+      - name: Build pinned C++ engines and test bridges
+        run: tools/build-local-engines.sh --platform linux --jobs 3

@@ -45,9 +45,15 @@ for ref in refs.values():
 
 with (root / 'ArhitektOffice/Resources/Info.plist').open('rb') as f:
     info = plistlib.load(f)
-for key in ['NSMicrophoneUsageDescription', 'NSSpeechRecognitionUsageDescription']:
+for key in ['NSMicrophoneUsageDescription']:
     assert info.get(key), f'Missing permission {key}'
 assert info['CFBundleDisplayName'] == 'Arhitekt Office'
+assert 'NSSpeechRecognitionUsageDescription' not in info
+assert 'audio' in info.get('UIBackgroundModes', [])
+for file in (root / 'ArhitektOffice').rglob('*.swift'):
+    code = file.read_text()
+    for forbidden in ['URLSession', 'import Speech', 'SFSpeechRecognizer', 'CloudAIClient', 'OPENAI_API_KEY']:
+        assert forbidden not in code, f'Network AI path present: {file}: {forbidden}'
 ET.parse(root / 'ArhitektOffice.xcodeproj/xcshareddata/xcschemes/ArhitektOffice.xcscheme')
 for path in (root / 'ArhitektOffice/Resources/Assets.xcassets').rglob('Contents.json'):
     contents = json.loads(path.read_text())

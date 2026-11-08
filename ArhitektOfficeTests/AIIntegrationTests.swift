@@ -56,8 +56,8 @@ import SwiftData
         XCTAssertEqual(transcript.text, full)
     }
 
-    func testNoRelevantContextProducesExplicitInsufficientAnswerWithoutConfiguration() async throws {
-        let response = try await CloudAIClient().ask(question: "Što je dogovoreno?", context: [])
+    func testNoRelevantContextProducesExplicitInsufficientAnswerWithoutLoadingModel() async throws {
+        let response = try await LocalAIClient().ask(question: "Što je dogovoreno?", context: [])
         XCTAssertTrue(response.insufficientData)
         XCTAssertTrue(response.sourceIDs.isEmpty)
     }

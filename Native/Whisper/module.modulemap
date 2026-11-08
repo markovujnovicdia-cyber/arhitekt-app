@@ -1,0 +1,4 @@
+framework module AOWhisper {
+    umbrella header "AOWhisper.h"
+    export *
+}

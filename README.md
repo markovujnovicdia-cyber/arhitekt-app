@@ -1,84 +1,100 @@
-# Arhitekt Office 2.0
+# Arhitekt Office 2.0 — potpuno lokalno
 
-Izvorna iPhone aplikacija za hrvatski arhitektonski ured: dugo lokalno snimanje, potpuni transkripti s verzijama, trajna projektna memorija s dokazima i pitanja nad odabranim podacima. **SwiftUI + SwiftData, iOS 17+, Xcode 16+.** Bez API ključa ugrađenog u aplikaciju.
+Izvorna iPhone aplikacija za hrvatskog arhitekta. Ciljani uređaj je **iPhone 16 Pro, A18 Pro, 8 GB RAM-a**. SwiftUI i SwiftData, SQLite FTS5, stvarni **whisper.cpp** i **llama.cpp** pogoni. Minimalni deployment iOS17; iPhone16Pro koristi iOS18 ili noviji.
 
-## Instalacija na iPhone
+**Nema backenda, API ključeva, mrežnog AI-ja niti mrežnog zamjenskog rješenja.** Aplikacija nema HTTP klijent i ne preuzima modele. Zvuk, transkripti, analiza, dohvat, upiti i metrike obrađuju se na uređaju. Ranija cloud konfiguracija uklonjena je; postojeće uredske informacije i izvorne revizije ostaju dostupne.
 
-1. Preuzmite projekt i na Macu otvorite **ArhitektOffice.xcodeproj**. Nema Swift Package ovisnosti ni generiranja potrebnog za otvaranje.
-2. Odaberite shemu **ArhitektOffice** i simulator ili vlastiti povezani iPhone.
-3. Za uređaj u Signing & Capabilities odaberite svoj Apple Development Team i po potrebi jedinstveni Bundle Identifier. Na iPhoneu omogućite Developer Mode i povjerenje uređaju.
-4. Pokrenite **Run** (`⌘R`). Mikrofon se traži tek pri prvom snimanju. Isprobajte najprije lokalni tijek bez cloud postavki.
+## Važno o stanju isporuke
 
-Ova verzija nadograđuje postojeće modele dodatnim poljima i odnosima. Stare bilješke, projekti, zadaci i problemi ostaju u aplikaciji. Prije nadogradnje stvarne baze napravite sigurnosnu kopiju; automatska SwiftData migracija mora se provjeriti na Macu/iPhoneu prije produkcijske uporabe.
+Implementirani su svi lokalni integracijski slojevi i korisnički tijekovi. Oba prava C++ pogona kompilirana su i testirana na Linuxu. **iOS/Xcode/Metal kompilacija, stvarni Whisper/Qwen modeli, hrvatsko diktiranje i rad na iPhoneu16Pro nisu potvrđeni u ovom okruženju.** Te provjere nisu zamijenjene cloud obradom.
 
-## Radni tijek
+Izvorni kod je kompletan, ali generirane Apple biblioteke i težine modela nisu u ZIP-u. Prije lokalnog AI-ja na iPhoneu treba na Macu izraditi dva XCFrameworka i lokalno uvesti modele. Otvaranje projekta bez njih omogućuje rad s uredskim podacima, ali AI tada jasno javlja da izvorne biblioteke nedostaju. To nije alternativni AI pogon.
 
-**Snimi razgovor → završi i sačuvaj → preslušaj → dopusti transkripciju → provjeri cijeli tekst → dopusti analizu odabranog konteksta → ispravi i potvrdi informacije.**
+## Izrada i instalacija
 
-- Snimanje je kontinuirani lokalni PCM CAF zapis, a ne kratka Apple Speech sesija. Pauziranje i nastavak koriste isti master. Nema umjetnog ograničenja na 20 minuta; praktične granice su prostor, baterija i iOS.
-- Dnevnik oporavka nastaje prije početka zvuka; ažurira se i baza. Nakon prekida ili ponovnog pokretanja sačuvani zapis vraća se u Memoriju. Audio se nikad ne briše zbog neuspjele transkripcije.
-- Tek nakon završetka izrađuju se poredani AAC dijelovi do 60 sekundi, koji se šalju zasebno i redom. Svaki uspješan rezultat odmah se lokalno sprema; ponovni pokušaj preskače uspješne dijelove, a izričita ponovna obrada može ih ponovno poslati.
-- Cijeli transkript ostaje sačuvan. Ispravci stvaraju novu verziju; ranije verzije i njihove reference ostaju dostupne. Ne prepisuju se sažetkom.
-- AI analizira sve dijelove dugog teksta, uz prethodni prozor istog izvora i pregledani lokalni kontekst. Odvaja činjenice, dogovore, planove, prijedloge, neizvjesnosti, zadatke, probleme, odluke, promjene, rokove i otvorena pitanja.
-- Svaki prijedlog ima provjereni doslovni citat i UTF-16 raspon iz točne verzije transkripta. Projekt, vrstu, pouzdanost, opis, osobu i rok uređuje korisnik prije potvrde. Ponovna potvrda istih prijedloga ne stvara iste zapise ponovno.
-- Potvrđene informacije dodaju se kronološki. Zadaci i problemi povezani su s izvornim zapisom; promjena može upućivati na prethodni zapis bez njegova brisanja.
-- Kartice: **Projekti, Zadaci, Problemi, Memorija, Pitaj ured**. Projekt prikazuje trenutačno stanje, otvorene stavke, potvrđene odluke i cjelovitu kronologiju. Memorija pretražuje i arhivu, snimke i sve verzije transkripata.
-
-Prekid pozivom pauzira mikrofon; nastavite ručno. Snimanje u pozadini i pri zaključanom ekranu koristi deklarirani audio background mode. Aplikacija **ne snima zvuk telefonskog poziva**. Nakon razgovora možete prepričati sadržaj. CAF čuva napisane audio okvire bez ovisnosti o završnom MP4 indeksu, ali gašenje uređaja ili prisilni prekid može izgubiti još nezapisane hardverske buffere. Djelomične datoteke ostaju sačuvane za oporavak; apsolutni gubitak nula uzoraka ne jamči se.
-
-## Jednostavno postavljanje
-
-Nemate server? Slijedite [kratke Render upute](docs/JEDNOSTAVNO-POSTAVLJANJE.md) ili otvorite [postavljanje na Render](https://render.com/deploy?repo=https%3A%2F%2Fgithub.com%2Fmarkovujnovicdia-cyber%2Farhitekt-app). Predložak traži Free plan, automatski generira token uređaja i traži da OpenAI ključ unesete izravno u Render. Pregledajte plan prije potvrde.
-
-## Cloud AI konfiguracija
-
-Snimanje, pauza, pohrana, pregled, ručne ispravke, lokalno pretraživanje i sigurnosne kopije rade bez interneta. **Napredna transkripcija, semantička analiza i odgovori zahtijevaju backend, internet i AI račun.** Modeli se ne izvršavaju na iPhoneu i nema obećanja offline AI-ja.
-
-Backend je u [backend/](backend/README.md): Node.js 24+, bez dodatnih npm paketa, odvojeni token uređaja, provjereni strukturirani odgovori, ograničenja veličine i vremena, bez spremanja sadržaja na poslužiteljski disk. Stvarni OpenAI ključ postavlja se isključivo kao `OPENAI_API_KEY` na poslužitelju. Nemojte ga unositi u iPhone ni Git.
-
-1. Postavite backend na svoj poslužitelj prema njegovu README-u. Podesite `OPENAI_API_KEY` i slučajni `DEVICE_ACCESS_TOKEN` od najmanje 32 znaka kroz sigurne server postavke.
-2. Osigurajte HTTPS domenu s valjanim certifikatom i reverse proxyjem prema backendu. Zadano sluša na loopback adresi; nema javnog deploymenta uključenog u ovu isporuku.
-3. U iPhone aplikaciji otvorite **zupčanik → Cloud AI poslužitelj**, unesite baznu HTTPS adresu bez `/v1` i **token uređaja**, ne OpenAI ključ. Token je u Keychainu i vezan uz točnu konfiguriranu adresu. Preusmjeravanja HTTP zahtjeva odbijaju se.
-4. Snimite kratak probni razgovor i zasebno dopustite slanje zvuka. Pri analizi pregledajte transkript, projekte i prethodne zapise koji će se poslati. Trošak stvarne cloud obrade ovisi o vašem pružatelju/računu.
-
-Zadani modeli: `gpt-4o-transcribe` za hrvatski govor i `gpt-4.1-mini` za strukturiranu analizu i odgovore. Podrška je provjerena u službenim OpenAI OpenAPI/SDK izvorima dostupnim iz okruženja; detalji i ograničenja provjere u backend README-u. Dostupnost vašem računu provjerava se tek stvarnim API pozivom.
-
-„Pitaj Arhitekt Office” prvo radi lokalni dohvat. Pregledate točne izvatke, uklonite neželjene izvore i zasebno dopustite slanje pitanja. Uz odgovor se prikazuju izvorni zapisi i datumi. Bez izvora daje se izričita obavijest da nema dovoljno podataka. Provjera citata ograničava izvore, ali ne može matematički jamčiti semantičku točnost modela; pregled ostaje potreban. Lokalni dohvat koristi pretraživanje teksta, prefikse i datumske filtre, a ne embeddings; za drugačije formulacije pokušajte naziv projekta ili drugi pojam.
-
-## Sigurnosne kopije i privatnost
-
-**Zupčanik → Kopija podataka i audio snimki** izvozi paket `.officebackup` s JSON podacima i zvukom. To je potpuna prenosiva kopija; za iCloud Drive ili drugo odredište koristite sistemsku aplikaciju Datoteke. Paket je obična mapa dokumenta, bez aplikacijskog šifriranja, pa odaberite sigurno odredište. Audio povećava veličinu: 20 minuta 16 kHz mono PCM-a približno je 38 MB prije AAC kopija.
-
-JSON izvoz ostaje dostupan za interoperabilnost, ali **ne sadrži audio bajtove**. V2 format čuva metapodatke, transkripte, AI nacrte i memoriju; uvoz v1 formata ostaje podržan. Uvoz spaja zapise po UUID-u, ne briše ostale zapise i čuva neizmjenjive izvorne verzije. Paket provjerava putanje, simboličke veze, veličine i sukobe datoteka. Jednaki postojeći audio zapisi ne prepisuju se; različiti sadržaj istog puta odbija se. Paket je ograničen na 2 GiB; JSON na 20 MB.
-
-Zvuk i dnevnik imaju iOS zaštitu `completeUntilFirstUserAuthentication`, koja omogućuje nastavak snimanja nakon zaključavanja tek nakon prvog otključavanja uređaja. Lokalna baza ostaje u sandboxu aplikacije. Cloud slanje traži izričitu privolu za svaku operaciju. Moguće je obrisati samo audio uz očuvanje transkripata i memorije. Brisanje aplikacije uklanja njezine lokalne podatke. iCloud sinkronizacija nije uključena; modeli su pripremljeni za buduću zasebno testiranu nadogradnju.
-
-## Testiranje i struktura
-
-- `App/`: trajna baza, oporavak na pokretanju i navigacija.
-- `Models/`: postojeći uredski modeli + snimke, dijelovi, verzije transkripta i memorija.
-- `Services/`: audio, oporavak, Keychain konfiguracija, AI klijent, dohvat, obrada, potvrda, kopije.
-- `Views/`: snimanje, potpuni transkripti, pregled AI prijedloga, kronologija i pitanja.
-- `backend/`: zaseban provjerljiv HTTP integracijski sloj.
+Na Macu trebaju puni **Xcode16+**, iOS SDK, Git, Python3 i CMake3.24+.
 
 ```sh
-# Linux ili Mac, stvarni lokalni backend testovi s lažnim AI providerom:
-cd backend
-npm ci --ignore-scripts
-npm test
+# Jednokratno instalirajte CMake ako ga nemate:
+brew install cmake
+# U korijenu preuzetog projekta:
+tools/build-local-engines.sh --platform ios --jobs 4
 ```
 
-Na Macu u korijenu projekta:
+Skripta preuzima službene whisper.cpp i llama.cpp izvore na točno zaključanim commitovima iz `Native/upstream-lock.json`, provjerava ih, izrađuje oba pogona za uređaj/simulator i ponovno generira Xcode projekt. Ne preuzima modele i ne čita poslovne podatke. Nakon prvog dohvata izrada može koristiti predmemorirane izvore. [Detalji izrade](Native/README.md).
+
+1. Otvorite **ArhitektOffice.xcodeproj** i shemu **ArhitektOffice**.
+2. U Frameworks moraju biti povezana i ugrađena oba `Native/Artifacts/*.xcframework`. Generator to automatski postavlja kada datoteke postoje. Nemojte pokušavati povezati dvije kopije GGML-a kao statičke biblioteke.
+3. Za vlastiti iPhone odaberite Development Team, jedinstveni Bundle Identifier ako je potreban, Developer Mode i povezani uređaj. Pokrenite `⌘R`.
+4. U **zupčanik → Lokalni AI modeli i izvođenje** uvezite modele iz lokalne aplikacije Datoteke prema [uputi za modele](docs/LOKALNI-MODELI.md).
+5. Počnite s višejezičnim **Whisper small**, zatim uvezite **Qwen3-1.7B Q4_K_M**. Medium je neobvezan i ne aktivira se automatski.
+
+ZIP se ne instalira izravno na iPhone. Za gradnju iz izvora potreban je Mac/Xcode. Modeli se prenose na uređaj, primjerice AirDropom ili kabelom, nakon zasebnog preuzimanja na računalu. Za potpuno lokalne kopije odaberite „Na mojem iPhoneu”, ne mrežni file-provider.
+
+## Dugo diktiranje i oporavak
+
+Snimanje putem AVAudioRecordera stvara jedan **kontinuirani PCM CAF master** od16kHz, mono,16bit. Pauza/nastavak koriste isti zapis. Dnevnik oporavka nastaje prije mikrofona, ažurira se uz SwiftData, a snimanje može nastaviti pri zaključanom zaslonu preko audio background moda. Poziv i odspajanje mikrofona pauziraju snimanje; nastavak je ručan. Aplikacija ne snima zvuk telefonskog poziva: razgovor možete poslije prepričati.
+
+Transkripcija čita male PCM prozore iz datoteke, bez učitavanja cijelog sastanka u RAM. Granice se biraju blizu tišine oko27sekundi, uz do1sekunde prethodnog zvuka i prethodnih100riječi kao Whisper kontekst. Svi izvorni okviri imaju pokrivenost. Vremenske oznake odstranjuju samo segment potpuno unutar ranije obrađenog konteksta; prijelazni segmenti i stvarna ponavljanja zadržavaju se. Moguće ponovljene rubne riječi korisnik ispravlja; nesigurno leksičko brisanje ne koristi se.
+
+Nakon svakog prozora tekst se **prvo atomski sprema u kontrolnu točku**, a zatim u bazu. Nastavak provjerava izvor, plan prozora i SHA modela; uspješni dijelovi ne obrađuju se ponovno. Promjena modela ili izvora stvara novi dnevnik, ne prepisuje prethodni transkript. Neuspjeh i otkazivanje ne brišu snimku. Zasebne tipke razlikuju nastavak od ponovne obrade svih dijelova.
+
+Potpuni transkript je uvijek dostupan. Svaka ručna ispravka stvara novu neizmjenjivu reviziju; dokazi ostaju vezani uz točan izvor. PCM čuva napisane audio okvire bez oslanjanja na završni MP4 indeks, ali prisilno gašenje iOS-a može izgubiti još nezapisane hardverske buffere. Nečitljiva djelomična datoteka ne briše se. Apsolutni „nula izgubljenih uzoraka” nije potvrđen niti obećan.
+
+## Lokalna analiza i razgovor
+
+Qwen3 radi kroz pravi llama.cpp, s isključenim thinking izlazom i JSON gramatikom. Cijeli transkript pokriva se uzastopnim prozorima, bez tihog odsijecanja na prvih nekoliko tisuća znakova. Svaki analizirani dio ima trajan dnevnik, pa prekid ne briše već validirane nacrte. Promjena izvora, modela ili konteksta odvojena je novim fingerprintom.
+
+Prijedlozi mogu biti događaji/bilješke, činjenice, dogovori, odluke, planovi, zadaci, problemi, rokovi, promjene i otvorena pitanja. Svaki mora imati jedinstveni doslovni citat s UTF-16 rasponom u točnoj verziji transkripta. Nevaljani JSON, izmišljeni izvori ili prekinut izlaz zbog granice tokena odbijaju se bez zapisivanja djelomičnih zaključaka. Osoba i strukturirani datum prihvaćaju se samo ako su izričito podržani citatom; nejasni relativni rokovi ostaju tekst.
+
+Mali model nema kalibriranu vjerojatnost točnosti. Automatske „potvrđene” tvrdnje zato se snižavaju na **neizvjesno** dok korisnik ne pregleda dokaz. Kategoriju, pouzdanost, osobu, rok, projekt i povezanost s ranijim događajem mijenja korisnik prije potvrde. Stari zapisi ne zamjenjuju se novim sažetkom. Izvor je uvijek sačuvan čak i kada je model nešto propustio; programsko pokrivanje svih prozora nije dokaz semantičke potpunosti.
+
+„Pitaj ured” koristi **lokalni SQLite FTS5**: Unicode dijakritiku, prefikse, BM25, projektne/datumske/statusne filtre i izvatke iz svih dijelova dugih izvora. Indeks nije autoritativna baza; obnovi se prema SwiftData sadržaju nakon uređivanja ili uvoza kopije. Usklađivanje i pretraživanje rade na zasebnoj radnoj dretvi. Upiti o neriješenim problemima koriste trenutačni status; tjedni zadaci rok, a povijesno spominjanje datum izvora.
+
+Odgovor ima izvore i datume. Bez relevantnih izvora model se ne učitava, nego se jasno kaže da podataka nema dovoljno. Izmišljene reference odbijaju se. FTS nije semantički embeddings indeks; parafraze bez zajedničkih pojmova mogu zahtijevati drugi pojam ili projektni filtar. Semantičku istinitost modela nije moguće dokazati samo gramatikom i citatima.
+
+## Memorija, temperatura i brzina
+
+Zajednički koordinator dopušta **samo jedan veliki pogon istodobno**. Svaki native poziv oslobađa kontekst i težine prije sljedećeg. Modeli se ne drže paralelno u memoriji. Najviše4CPU dretve, Metal/Accelerate na uređaju, najviše8192LLM kontekstnih tokena i ograničen izlaz. Prevelik kontekst vraća pogrešku umjesto tihog skraćivanja.
+
+Pri ozbiljnom/kritičnom termalnom stanju, memory warningu, zaštitnom pragu fizičkog otiska ili odlasku aplikacije u pozadinu AI obrada se prekida i može nastaviti iz kontrolne točke. Aktivno audio snimanje zasebno nastavlja prema iOS audio pravilima. Pragovi su konzervativna zaštita, ne jamstvo protiv iOS jetsama.
+
+U **Mjerenjima lokalnog izvođenja** nalaze se:
+
+- vrijeme cijelog native poziva, uključujući učitavanje/oslobađanje;
+- opaženi `phys_footprint` vrh, uzorkovan svakih100ms;
+- stvarni broj emitiranih LLM tokena i tokeni/s za prefill+decode, odvojeno od ukupnog vremena;
+- stanje temperature prije/poslije, prekidi i upozorenja memorije.
+
+Za Whisper se ne izmišljaju LLM tokeni/s. Mjerenja ne sadrže transkript ili odgovor. Nema unaprijed izmišljenog rezultata brzine ili RAM-a za A18Pro. Medium može biti sporiji/topliji i mora se zasebno provjeriti na uređaju. [Protokol provjere](docs/TESTIRANJE.md).
+
+## Pohrana i kopije
+
+SwiftData čuva projekte, faze, zadatke, probleme, bilješke, snimke, revizije i potvrđenu memoriju. FTS5 je odvojeni obnovljivi indeks. Izvorni PCM zvuk, kontrolne točke i podaci imaju zaštitu do prvog otključavanja uređaja; Application Support isključen je iz automatskog backupa. Nema CloudKita ni sinkronizacije. Raniji backend token uklanja se iz Keychaina bez čitanja njegove vrijednosti.
+
+JSON kopija sadrži podatke bez zvuka. Potpuni `.officebackup` uključuje mastere, metapodatke i dnevnike transkripcije; lokalni PCM prozori ne dupliciraju master. Stare kopije ostaju čitljive. Brisanje samo zvuka zadržava transkripte i tekstualne kontrolne točke, uključujući stanje nakon neuspješnog DB spremanja. Modeli i obnovljivi FTS indeks nisu u korisničkom paketu. Lokalni analitički nacrti u bazi izvoze se; regenerabilni fragmentni analysis cache nije zaseban poslovni izvor.
+
+Kopije nisu aplikacijski šifrirane. Za potpuno lokalni rad izvozite na uređaj ili prenosite kabelom/AirDropom. Ako korisnik sam izabere mrežni servis u sistemskom biraču datoteka, taj prijenos je izvan lokalnog AI pogona; aplikacija ne pokreće vlastiti upload. Potpuni paket ograničen je na2GiB zvuka i20MB JSON-a. Ne brišite aplikaciju prije sigurnosne kopije.
+
+## Testiranje i rezultati
+
+```sh
+# Stvarna SQLite FTS5 shema:
+python3 tools/test_fts_index.py
+# Linux CPU kompilacija stvarnih izvora i C ABI provjere:
+tools/build-local-engines.sh --platform linux --jobs 4
+# Statička Swift/Xcode provjera u Python venv-u:
+python3 -m pip install -r tools/validation-requirements.txt
+python3 tools/validate_project.py
+```
+
+Na Macu nakon native izrade:
 
 ```sh
 xcodebuild build -project ArhitektOffice.xcodeproj -scheme ArhitektOffice \
   -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO
 xcodebuild test -project ArhitektOffice.xcodeproj -scheme ArhitektOffice \
-  -destination 'platform=iOS Simulator,name=iPhone 16' CODE_SIGNING_ALLOWED=NO
+  -destination 'platform=iOS Simulator,name=iPhone 16 Pro' CODE_SIGNING_ALLOWED=NO
 ```
 
-Ime simulatora prilagodite svojem Xcodeu. `⌘U` pokreće XCTest. GitHub Actions uključuje iOS i backend provjere. Stvarna hrvatska transkripcija, mikrofon, prekidi, pozadina i migracija baze zahtijevaju provjeru na uređaju prema [TESTIRANJE.md](docs/TESTIRANJE.md).
-
-U ovom Linux okruženju **nema Swift/Xcode toolchaina**. Backend testovi i statičke provjere su izvedivi; iOS build, XCTest i instalacija nisu izvršeni. Rezultati su u [REZULTATI.md](docs/REZULTATI.md). Backend nije objavljen i stvarni AI pozivi nisu testirani bez konfiguriranih ključeva.
-
-Xcode projekt je već generiran. Ako dodate izvore izvan Xcodea, `python3 tools/generate_project.py` obnavlja projekt/sheme i pregazit će ručne Xcode postavke. Statički validator: u Python virtualnom okruženju instalirajte `tools/validation-requirements.txt` i pokrenite `python3 tools/validate_project.py`; on ne zamjenjuje Apple SDK build.
+Ime simulatora prilagodite Xcodeu. Simulator nije zamjena za A18Pro mjerenje. CI konfiguracija izrađuje native biblioteke prije iOS provjera; njezin udaljeni uspjeh nije pretpostavljen. [Stvarni rezultati](docs/REZULTATI.md), [native rezultati](Native/TEST-RESULTS.md), [upute za modele](docs/LOKALNI-MODELI.md).

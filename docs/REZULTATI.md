@@ -1,45 +1,42 @@
-# Arhitekt Office 2.0 — rezultati 7. studenoga 2026.
+# Lokalni Arhitekt Office 2.0 — 8. studenoga 2026.
 
-Okruženje se nakon prethodne greške uspješno pokrenulo. Razvoj i provjere obavljeni su na Linuxu s Pythonom3.12 i Node.js24.19.0. Swift i Xcode nisu instalirani.
+## Stvarno izvršeno
 
-## Izvršeno i prošlo
+Okruženje: Linux x86_64, GCC14.2.0, Python3.12.14 i CMake4.4.4. Nema Swift kompajlera, Xcodea ili fizičkog iPhonea.
 
-- `npm ci --ignore-scripts` u backend direktoriju: reproducibilna instalacija bez dodatnih runtime paketa.
-- `npm test`: **28 testova, 28 prošlo, 0 neuspjelih, 0 preskočenih**. Testovi koriste pravi lokalni HTTP server i kontrolirani lažni AI provider. Provjereni su autentikacija, multipart audio, redoslijed, dugi tekst, UTF-16 citati, nepoznati/izmišljeni izvori, duplikati, kalendarski datumi, ograničenja, API greške, timeout, nepotpuni odgovori, nedostatan kontekst i kompatibilnost Swift JSON kodiranja.
-- `tools/validate_project.py`: **36 Swift datoteka** parsirano bez sintaktičkih grešaka; OpenStep/Xcode projekt je čitljiv, svi izvori u build fazama, resursi postoje, Info.plist i shema su valjani, ikona je1024px RGB bez alpha kanala. Ovo nije provjera Swift tipova ni Apple SDK-a.
-- Ponovna generacija Xcode projekta i sheme daje iste SHA-256 vrijednosti.
-- `git diff --check` prolazi.
-- Službeni OpenAI OpenAPI i Node SDK izvori dostupni kroz raw.githubusercontent.com potvrđuju odabrane modele i JSON/audio integracijski ugovor. Izravne dokumentacijske domene blokirane su politikom okruženja; backend README navodi granice provjere. Veličina20MiB je ograničenje ove implementacije, a ne tvrdnja o aktualnom ukupnom limitu pružatelja.
+- **Stvarni whisper.cpp i llama.cpp kompilirani su za Linux CPU** na zaključanim commitovima iz `Native/upstream-lock.json`. Kompilacija uključuje GGML i oba C++ adaptera, bez stubova za inferencijske funkcije.
+- **7 C-ABI testova prošlo**, uz istodobno učitavanje oba pogona, provjeru izvoza samo vlastitih funkcija, nevaljane ulaze/model, otkazivanje i granice spremnika. Nema izvezenih GGML simbola koji bi se sudarili između pogona.
+- **2 C++ testa prošla**: UTF-8/JSON escaping i stvarna upstream JSON gramatika. Provjereni su hrvatski znakovi, emoji, nepotpuni/nevaljani JSON i zabrana dodatnog teksta/think tagova.
+- **11 SQLite FTS5 testova prošlo** nad stvarnom shemom iz `FTSIndex.swift` i SQLite3.53.1. Obuhvat: hrvatska dijakritika/prefiksi, BM25, svi dijelovi dugog izvora, vezani upiti, projekt/status/tjedni rokovi, transakcijski rollback i usklađivanje nakon obnove podataka.
+- **40 Swift datoteka** uspješno statički parsirano; Xcode projekt, članstvo izvora, SQLite povezivanje, resursi, Info.plist, shema i ikona su valjani. Statički audit zabranjuje URLSession, Apple Speech mrežni put, CloudAIClient i OpenAI ključ u aplikacijskom kodu.
+- Python alati i shell build skripta prolaze provjeru sintakse. `git diff --check` prolazi.
 
-## Napisano, nije izvršeno
+Detalji native provjera: `Native/TEST-RESULTS.md`.
 
-**47 XCTest metoda** uključeno je u Xcode test target:
+## Izričito preskočeno ili neizvršeno
 
-- 14 postojećih podatkovnih/parser testova.
-- 3 testa stare politike Apple Speech mrežne privole, zadržana radi kompatibilnosti.
-- 10 testova projektne memorije, revizija, dokaza, potvrde, duplikata, datuma i JSONv1/v2.
-- 8 audio testova: dnevnik prije početka, oporavak20min sesije, nevaljana putanja, nečitljiv djelomični zapis, stvarni sintetički121s CAF→uređeni AAC dijelovi, retry, otkazivanje, brisanje uz očuvanje izvora.
-- 8 testova prenosivog audio paketa, ponovljenog uvoza, sukoba, nevaljanog JSON-a, nedostajućih dijelova i simboličkih poveznica.
-- 4 testa točnih UTF-16 izvora, lokalnog dohvata, ograničenih izvadaka iz dugog transkripta i izričitog nedostatka konteksta.
+- **2 provjere sa stvarnim modelima preskočene**: hrvatski Whisper WAV i Qwen3 GGUF generiranje. Težine modela i stvarna hrvatska snimka nisu dostupni. Pokušaj dohvata Qwenove službene konfiguracije s Hugging Facea blokiran je HTTP403 mrežnom politikom; blokada nije zaobiđena. Službeni Qwen GitHub README je dostupan, a očekivana arhitektura ugrađena je u validator, ali stvarna datoteka modela nije njime provjerena ovdje.
+- **Nisu izvršeni iOS/Metal build, Swift typecheck, SwiftData makroi ni XCTest.** Mac build skripta je pripremljena; Linux ne može potvrditi Apple XCFramework izradu. U ovom checkoutu nema generiranih iOS XCFrameworka, stoga trenutačno generirani Xcode projekt prikazuje0/2 native modula. Skripta ih na Macu izrađuje i regenerira projekt s oba link/embed zapisa.
+- **Nema mjerenja na iPhoneu16Pro/A18Pro.** Nisu potvrđeni brzina, stvarni RAM vrh, temperatura, jetsam otpornost, hrvatska točnost, kvaliteta semantičke ekstrakcije ili20-minutna stvarna snimka. U aplikaciji su implementirani brojači i protokol za ta mjerenja; brojke nisu izmišljene.
+- Udaljeni CI za ovu reviziju nije pretpostavljen uspješnim. iOS workflow prvo izrađuje native biblioteke pa tek aplikaciju/testove.
 
-XCTest nad stvarnim zvukom koristi sintetički audio u privremenom direktoriju, ne mikrofon. Broj napisanih testova nije tvrdnja da su prošli.
+## Napisani testovi za Xcode
 
-## Zahtijeva vanjsku konfiguraciju ili Apple uređaj
+**80 XCTest metoda** uključeno je u test target; broj otkrivenih metoda nije prolaznost. Pokrivaju postojeću pohranu, revizije/provenanciju, lokalne audio prozore i resampliranje, nastavak/izvor/model fingerprint, kontrolne točke, očuvanje djelomičnog teksta pri brisanju zvuka, prenosive kopije, model GGML/GGUF validaciju i checksum, memorijsku/termalnu politiku, FTS5 i asinkrono pretraživanje te potpuno pokrivanje dugih sintetičkih tekstova.
 
-- Nisu izvršeni iOS build, Apple SDK typecheck/SwiftData makroi, XCTest ni stvarna migracija postojeće baze1.0.
-- Nisu testirani pravi mikrofon, hrvatska transkripcija, poziv, zaključavanje i oporavak na fizičkom iPhoneu. Provjere su u TESTIRANJE.md.
-- Backend nije deployan. Nisu konfigurirani server OpenAI ključ, token uređaja ni javni HTTPS URL. Stvarni API pozivi i semantička kvaliteta modela nisu provjereni.
-- CI datoteke su pripremljene; njihov udaljeni rezultat nije potvrđen ovom lokalnom provjerom.
-- iCloud sinkronizacija nije uključena.
+Sintetički hrvatski testni tekst nije označen kao stvarni poslovni transkript. Provjere sheme/gramatike ne mjere semantičku točnost niti dokazuju da je Qwen1.7B dovoljno pouzdan za samostalne poslovne zaključke.
 
-## Važna ograničenja
+## Potvrđena arhitekturna svojstva koda
 
-AI dobiva samo korisnički pregledan kontekst i puni odabrani transkript; odgovori/citati prolaze strukturnu validaciju, ali to ne jamči semantičku nepogrešivost. Potvrda korisnika obvezna je prije strukturiranih izmjena. Lokalni dohvat je tekstualan, bez embeddingsa; ponekad treba drugi pojam ili odabir projekta. Relativni/nejasni rokovi ostaju u opisu dok ih korisnik ne razjasni.
+- iPhone aplikacija nema mrežni klijent, backend URL ili API ključ; nema cloud fallbacka. Stari backend, Render predložak i Apple Speech mrežni put uklonjeni su iz aktualne isporuke.
+- Snimanje je kontinuirani lokalni CAF; PCM prozori su ograničeni na30sekundi i pokrivaju cijeli izvor. Svaki uspješan prozor ima atomsku kontrolnu točku prije baze. Rubna nesigurna ponavljanja ne brišu se leksičkim pravilima.
+- Dva velika modela ne učitavaju se istodobno. Native konteksti/težine oslobađaju se prije otključavanja koordinatora; uvoz ili brisanje modela nije dopušteno tijekom inferencije.
+- Prijedlozi i odgovori validiraju JSON, postojeće izvore i točne citate. Strojne potvrđene tvrdnje snižavaju se u neizvjesne; korisnik potvrđuje. Dosegnuta granica izlaznih tokena vraća pogrešku umjesto prihvata djelomičnih zaključaka.
+- Stari izvori ne zamjenjuju se sažecima. Izvorni audio i povijest ostaju pri neuspjehu. Selektivno brisanje zvuka zadržava tekstualne dnevnike, a vidljiv djelomični oporavljeni transkript jasno je označen kao nepotpun.
+- Lokalni modeli uvoze se iz Files. Validacija stvarnog zaglavlja i SHA radi u pozadinskom kopiranju; spremnik modela nije dio poslovne kopije. Application Support isključen je iz automatskog backupa. Ručni sistemski izvoz slijedi odredište koje korisnik odabere; za potpuno lokalnu kopiju odaberite lokalni uređaj/kabel/AirDrop.
 
-Snimanje koristi kontinuirani zaštićeni CAF master i dnevnik; nema pauziranja radi granica slanja. Pri prisilnom gašenju moguće je izgubiti još nezapisane buffere. Nečitljivi djelomični audio ne briše se. Cloud obrada radi u aktivnoj aplikaciji; prekid zahtjeva čuva već obrađene dijelove za retry.
+## Preostale granice
 
-JSON ne uključuje audio bajtove. Paket .officebackup uključuje zvuk i nije dodatno šifriran. Različite datoteke istog puta odbijaju se, bez prepisivanja. Ne postoji jedna transakcija koja obuhvaća i SQLite i datotečni sustav pri prisilnom prekidu; instalirane datoteke mogu ostati kao oporavljive snimke i ponovni uvoz koristi identične datoteke.
+FTS5 nije embeddings pretraživanje i može tražiti drukčiji pojam. Sačuvan izvor i pokrivenost svih prozora ne znače da je model razumio svaki detalj. Promjenjivi iOS resursi, model load i GPU operacije mogu se prekinuti tek kada native pogon obradi callback; zaštitni pragovi ne jamče izostanak iOS jetsama. Djelomične izvorne datoteke ostaju sačuvane i ako ih decoder ne može otvoriti.
 
-## Dodatak: jednostavno postavljanje
-
-Dodani su `render.yaml`, kratka uputa za Render te aplikacijska provjera veze bez slanja izvora. Lokalno su provjereni YAML sintaksa, Docker putanje, deklaracije tajni i health ruta. Backend ponovno prolazi svih28 testova, a Swift/Xcode statički validator svih36 datoteka. Renderov stvarni deployment i API ključ nisu provjereni jer korisnik još treba prijaviti svoj račun i unijeti vrijednosti. Renderova dokumentacijska domena nije dostupna iz ovog ograničenog cloud okruženja; Blueprint treba pregledati u Renderovu obrascu prije stvaranja servisa. Nije potvrđena provjera uživo protiv Renderove sheme.
+Za potpune sljedeće provjere trebaju Mac/Xcode, lokalne navedene težine modela i stvarni iPhone16Pro. Koraci su u README.md, LOKALNI-MODELI.md i TESTIRANJE.md.

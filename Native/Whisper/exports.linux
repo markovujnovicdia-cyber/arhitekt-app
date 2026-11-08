@@ -1,0 +1,1 @@
+{ global: ao_whisper_transcribe; ao_whisper_free_text; local: *; };

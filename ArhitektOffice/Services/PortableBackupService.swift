@@ -10,7 +10,7 @@ enum PortableBackupService {
     private nonisolated static var manager: FileManager { FileManager.default }
 
     enum PackageError: LocalizedError {
-        case invalid(String), missing(String), conflict(String), tooLarge, recordingActive
+        case invalid(String), missing(String), conflict(String), tooLarge, recordingActive, processingActive
         var errorDescription: String? {
             switch self {
             case .invalid(let detail): "Paket sigurnosne kopije nije valjan: \(detail)"
@@ -18,6 +18,7 @@ enum PortableBackupService {
             case .conflict(let path): "Na uređaju već postoji drukčija datoteka \(path). Uvoz je zaustavljen bez prepisivanja zvuka."
             case .tooLarge: "Paket prelazi ograničenje od 2 GB. Izvezite JSON i zasebno sačuvajte velike snimke."
             case .recordingActive: "Prije sigurnosne kopije završite aktivno ili pauzirano snimanje."
+            case .processingActive: "Prije sigurnosne kopije pričekajte završetak ili pauzirajte lokalnu AI obradu."
             }
         }
     }
@@ -32,9 +33,10 @@ enum PortableBackupService {
         let recordings = try container.mainContext.fetch(FetchDescriptor<RecordingSession>())
         let files = try audioFiles(recordings: recordings, root: recordingStore.rootDirectory, store: recordingStore)
         var audioChildren: [String: FileWrapper] = [:]
-        for recording in recordings where recording.masterRelativePath != nil {
+        for recording in recordings {
             let prefix = recording.id.uuidString + "/"
             let selected = files.filter { $0.relativePath.hasPrefix(prefix) }
+            guard !selected.isEmpty else { continue }
             var recordingChildren: [String: FileWrapper] = [:]
             var chunks: [String: FileWrapper] = [:]
             for file in selected {
@@ -79,7 +81,7 @@ enum PortableBackupService {
         if hasAudio { try inspect(audioRoot, directory: true) }
         let incoming = try audioFiles(recordings: recordings, root: audioRoot, store: recordingStore)
         if hasAudio {
-            let expectedIDs = Set(recordings.filter { $0.masterRelativePath != nil }.map { $0.id.uuidString })
+            let expectedIDs = Set(recordings.map { $0.id.uuidString })
             guard try names(in: audioRoot).isSubset(of: expectedIDs) else {
                 throw PackageError.invalid("audio mapa sadrži nepoznatu snimku")
             }
@@ -166,49 +168,77 @@ enum PortableBackupService {
 
     private static func audioFiles(recordings: [RecordingSession], root: URL,
                                    store: RecordingFileStore) throws -> [AudioFile] {
-        if recordings.contains(where: { $0.masterRelativePath != nil }) { try inspect(root, directory: true) }
+        guard manager.fileExists(atPath: root.path) else {
+            if let recording = recordings.first(where: { $0.masterRelativePath != nil }) {
+                throw PackageError.missing(store.masterPath(for: recording.id))
+            }
+            return []
+        }
+        try inspect(root, directory: true)
         var result: [AudioFile] = []
         var total: Int64 = 0
-        for recording in recordings where recording.masterRelativePath != nil {
+        for recording in recordings {
             let id = recording.id
             let canonicalMaster = store.masterPath(for: id)
-            guard recording.masterRelativePath == canonicalMaster else { throw PackageError.invalid("nesigurna putanja izvorne snimke") }
             let directory = root.appendingPathComponent(id.uuidString, isDirectory: true)
-            guard manager.fileExists(atPath: directory.path) else { throw PackageError.missing(canonicalMaster) }
+            guard manager.fileExists(atPath: directory.path) else {
+                if recording.masterRelativePath != nil { throw PackageError.missing(canonicalMaster) }
+                continue
+            }
             try inspect(directory, directory: true)
-            let allowed: Set<String> = ["master.caf", "recovery.json", "chunks"]
-            guard try names(in: directory).isSubset(of: allowed) else { throw PackageError.invalid("nepoznata datoteka u snimci") }
-            let recoveryURL = directory.appendingPathComponent("recovery.json")
-            guard manager.fileExists(atPath: recoveryURL.path) else { throw PackageError.missing("\(id.uuidString)/recovery.json") }
-            guard try inspect(recoveryURL, directory: false) <= 2 * 1_024 * 1_024 else {
-                throw PackageError.invalid("prevelik dnevnik oporavka")
+            let directoryNames = try names(in: directory)
+            let checkpointNames = Set(directoryNames.filter(isCheckpointFilename))
+            let audioNames: Set<String> = ["master.caf", "recovery.json", "chunks"]
+            let allowed = recording.masterRelativePath == nil ? checkpointNames : audioNames.union(checkpointNames)
+            guard directoryNames.isSubset(of: allowed) else {
+                throw PackageError.invalid("nepoznata datoteka u snimci")
             }
-            // Validate journal paths against the package root, not the live store.
-            let journalStore = RecordingFileStore(rootDirectory: root)
-            let manifest = try journalStore.readManifest(id: id)
-            let expectedPaths = Set(recording.segments.filter { $0.stateRaw != "audioDeleted" }.map(\.relativePath))
-            for segment in recording.segments {
-                guard segment.index >= 0, segment.index < 1_000_000,
-                      segment.relativePath == store.segmentPath(for: id, index: segment.index) else {
-                    throw PackageError.invalid("nesigurna putanja dijela snimke")
+            var required = Set<String>()
+            for name in checkpointNames {
+                let url = directory.appendingPathComponent(name)
+                guard try inspect(url, directory: false) <= Int64(BackupService.maximumBytes) else {
+                    throw PackageError.invalid("prevelik lokalni dnevnik transkripcije")
                 }
+                // Even a corrupt partial journal can contain valuable text. Keep
+                // these bounded files opaque, including after explicit audio
+                // deletion. The checkpoint store validates ID/window/source/model
+                // before any journal can be resumed; package import trusts none.
+                required.insert("\(id.uuidString)/\(name)")
             }
-            // Preserve also fully written pieces found in a newer recovery journal.
-            // The continuous master remains authoritative when processing stopped.
-            let journalPaths = Set(manifest.segments.map(\.relativePath))
-            var required = expectedPaths.union(journalPaths)
-            required.insert(canonicalMaster)
-            required.insert("\(id.uuidString)/recovery.json")
-            let chunksDirectory = directory.appendingPathComponent("chunks", isDirectory: true)
-            if manager.fileExists(atPath: chunksDirectory.path) {
-                try inspect(chunksDirectory, directory: true)
-                for name in try names(in: chunksDirectory) {
-                    guard name.range(of: #"^[0-9]{6}\.m4a$"#, options: .regularExpression) != nil else {
-                        throw PackageError.invalid("nepoznat dio snimke")
+            if recording.masterRelativePath != nil {
+                guard recording.masterRelativePath == canonicalMaster else { throw PackageError.invalid("nesigurna putanja izvorne snimke") }
+                let recoveryURL = directory.appendingPathComponent("recovery.json")
+                guard manager.fileExists(atPath: recoveryURL.path) else { throw PackageError.missing("\(id.uuidString)/recovery.json") }
+                guard try inspect(recoveryURL, directory: false) <= 2 * 1_024 * 1_024 else {
+                    throw PackageError.invalid("prevelik dnevnik oporavka")
+                }
+                let journalStore = RecordingFileStore(rootDirectory: root)
+                let manifest = try journalStore.readManifest(id: id)
+                let expectedPaths = Set(recording.segments.filter { $0.stateRaw != "audioDeleted" }.map(\.relativePath))
+                for segment in recording.segments {
+                    let legacyPath = store.segmentPath(for: id, index: segment.index)
+                    let localWindow = segment.stateRaw.hasPrefix("local:") && segment.relativePath == canonicalMaster
+                    let deletedWindow = segment.stateRaw == "audioDeleted" && segment.relativePath == canonicalMaster
+                    guard segment.index >= 0, segment.index < 1_000_000,
+                          localWindow || deletedWindow || segment.relativePath == legacyPath else {
+                        throw PackageError.invalid("nesigurna putanja dijela snimke")
                     }
-                    // Keep canonical completed chunks even if an interrupted DB save
-                    // has not attached them to metadata yet.
-                    required.insert("\(id.uuidString)/chunks/\(name)")
+                }
+                // Local PCM windows share one physical master. Legacy cloud AAC
+                // pieces and their recovery journal remain backward compatible.
+                required.formUnion(expectedPaths)
+                required.formUnion(manifest.segments.map(\.relativePath))
+                required.insert(canonicalMaster)
+                required.insert("\(id.uuidString)/recovery.json")
+                let chunksDirectory = directory.appendingPathComponent("chunks", isDirectory: true)
+                if manager.fileExists(atPath: chunksDirectory.path) {
+                    try inspect(chunksDirectory, directory: true)
+                    for name in try names(in: chunksDirectory) {
+                        guard name.range(of: #"^[0-9]{6}\.m4a$"#, options: .regularExpression) != nil else {
+                            throw PackageError.invalid("nepoznat dio snimke")
+                        }
+                        required.insert("\(id.uuidString)/chunks/\(name)")
+                    }
                 }
             }
             for relativePath in required.sorted() {
@@ -221,6 +251,14 @@ enum PortableBackupService {
             }
         }
         return result
+    }
+
+    private static func isCheckpointFilename(_ name: String) -> Bool {
+        if name == "local-transcription-v1.json" { return true }
+        let prefix = "local-transcription-history-"
+        guard name.hasPrefix(prefix), name.hasSuffix(".json") else { return false }
+        let token = String(name.dropFirst(prefix.count).dropLast(5))
+        return UUID(uuidString: token)?.uuidString == token
     }
 
     private static func validatedContainer(_ data: Data) throws -> ModelContainer {
@@ -292,5 +330,6 @@ enum PortableBackupService {
     private static func ensureIdle() throws {
         let state = LongRecordingService.shared.state
         guard state != .recording, state != .paused, state != .preparing else { throw PackageError.recordingActive }
+        guard !LocalInferenceCoordinator.shared.isBusy else { throw PackageError.processingActive }
     }
 }
